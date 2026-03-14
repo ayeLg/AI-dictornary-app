@@ -476,13 +476,16 @@
     const fbAuth = firebase.auth();
     const fbDb   = firebase.firestore();
 
-    // Cloud helpers
-    async function cloudSave(uid, saved) {
-      await fbDb.collection('users').doc(uid).set({ saved }, { merge: true });
+    // Cloud helpers — saves saved words + apiKey together
+    async function cloudSave(uid, saved, apiKey) {
+      const data = { saved };
+      if (apiKey) data.apiKey = apiKey;
+      await fbDb.collection('users').doc(uid).set(data, { merge: true });
     }
     async function cloudLoad(uid) {
       const doc = await fbDb.collection('users').doc(uid).get();
-      return doc.exists ? (doc.data().saved || []) : [];
+      if (!doc.exists) return { saved: [], apiKey: null };
+      return { saved: doc.data().saved || [], apiKey: doc.data().apiKey || null };
     }
   </script>
 
@@ -1422,7 +1425,7 @@ Return ONLY raw JSON:
       const [syncing, setSyncing]           = useState(false);
       const [authReady, setAuthReady]       = useState(false);
 
-      // Auth state listener
+      // Auth state listener — loads saved words + apiKey from cloud
       useEffect(() => {
         return fbAuth.onAuthStateChanged(async (u) => {
           setUser(u);
@@ -1430,14 +1433,23 @@ Return ONLY raw JSON:
           if (u) {
             setSyncing(true);
             try {
-              const cloudWords = await cloudLoad(u.uid);
+              const { saved: cloudWords, apiKey: cloudKey } = await cloudLoad(u.uid);
+              // Load saved words from cloud
               if (cloudWords.length > 0) {
                 setSaved(cloudWords);
                 lsSet(KEYS.SAVED, cloudWords);
               } else {
-                // First login — upload local words to cloud
                 const local = lsGet(KEYS.SAVED, []);
-                if (local.length > 0) await cloudSave(u.uid, local);
+                if (local.length > 0) await cloudSave(u.uid, local, lsGet(KEYS.API, ''));
+              }
+              // Load API key from cloud (syncs across devices!)
+              if (cloudKey) {
+                setApiKey(cloudKey);
+                lsSet(KEYS.API, cloudKey);
+              } else {
+                // First login — upload local key to cloud
+                const localKey = lsGet(KEYS.API, '');
+                if (localKey) await cloudSave(u.uid, cloudWords, localKey);
               }
             } catch(e) { console.warn('Cloud load failed', e); }
             finally { setSyncing(false); }
@@ -1447,7 +1459,13 @@ Return ONLY raw JSON:
 
       const needsKey = !apiKey && activeTab === 'dictionary';
 
-      const handleSaveKey = (key) => { lsSet(KEYS.API, key); setApiKey(key); setShowKeyModal(false); };
+      // Save key to both localStorage and cloud
+      const handleSaveKey = (key) => {
+        lsSet(KEYS.API, key);
+        setApiKey(key);
+        setShowKeyModal(false);
+        if (user) cloudSave(user.uid, lsGet(KEYS.SAVED, []), key).catch(() => {});
+      };
 
       const handleSaveToggle = (result) => {
         setSaved(prev => {
