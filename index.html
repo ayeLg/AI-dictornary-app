@@ -1,0 +1,1548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Mingalar">
+  <meta name="theme-color" content="#0a0a0b">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon.svg">
+  <title>Mingalar · မြန်မာ Dictionary</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Plus+Jakarta+Sans:wght@300;400;500;600&family=Noto+Sans+Myanmar:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore-compat.js"></script>
+
+  <style>
+    :root {
+      --bg:        #0a0a0b;
+      --bg2:       #111113;
+      --card:      #16161a;
+      --card2:     #1e1e24;
+      --border:    rgba(255,255,255,0.06);
+      --border2:   rgba(255,255,255,0.12);
+      --text:      #f0f0f4;
+      --text2:     #94949f;
+      --text3:     #55555f;
+      --accent:    #6366f1;
+      --accent2:   #818cf8;
+      --accent-bg: rgba(99,102,241,0.1);
+      --gold:      #f59e0b;
+      --gold-bg:   rgba(245,158,11,0.08);
+      --green:     #10b981;
+      --green-bg:  rgba(16,185,129,0.08);
+      --red:       #ef4444;
+      --red-bg:    rgba(239,68,68,0.08);
+      --font-en:   'Plus Jakarta Sans', sans-serif;
+      --font-title:'Cormorant Garamond', serif;
+      --font-my:   'Noto Sans Myanmar', 'Plus Jakarta Sans', sans-serif;
+      --radius:    16px;
+      --radius-sm: 10px;
+      --nav-h:     68px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body { height: 100%; background: var(--bg); overflow: hidden; }
+    body { font-family: var(--font-en); color: var(--text); -webkit-font-smoothing: antialiased; }
+
+    #root {
+      height: 100vh; height: 100dvh;
+      display: flex; flex-direction: column;
+      max-width: 480px; margin: 0 auto;
+      position: relative; overflow: hidden;
+    }
+
+    body::after {
+      content: ''; position: fixed; inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+      pointer-events: none; z-index: 9999;
+    }
+
+    /* ── Layout ─────────────────────────────── */
+    .app-header {
+      flex-shrink: 0; padding: 16px 20px 13px;
+      background: var(--bg); border-bottom: 1px solid var(--border);
+    }
+    .app-brand { display: flex; align-items: baseline; gap: 10px; }
+    .app-title {
+      font-family: var(--font-title); font-size: 28px; font-weight: 600; letter-spacing: -0.3px;
+      background: linear-gradient(120deg, #fff 30%, var(--accent2) 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .app-subtitle { font-size: 10px; font-weight: 600; color: var(--text3); letter-spacing: 0.8px; text-transform: uppercase; }
+
+    /* Phase 3: Offline banner */
+    .offline-banner {
+      flex-shrink: 0;
+      background: rgba(245,158,11,0.1); border-bottom: 1px solid rgba(245,158,11,0.2);
+      padding: 7px 20px; font-size: 12px; font-weight: 600;
+      color: var(--gold); text-align: center; letter-spacing: 0.2px;
+    }
+
+    .content-area {
+      flex: 1; overflow-y: auto; overflow-x: hidden;
+      padding-bottom: calc(var(--nav-h) + 8px); scrollbar-width: none;
+    }
+    .content-area::-webkit-scrollbar { display: none; }
+
+    /* Phase 3: Tab fade animation */
+    .tab-fade { animation: tabFade 0.22s ease; }
+    @keyframes tabFade {
+      from { opacity: 0; transform: translateY(5px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── Bottom Nav ─────────────────────────── */
+    .bottom-nav {
+      position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+      width: 100%; max-width: 480px; height: var(--nav-h);
+      background: rgba(10,10,11,0.94); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+      border-top: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-around;
+      z-index: 100; padding-bottom: env(safe-area-inset-bottom, 0);
+    }
+    .nav-item {
+      flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 8px 0;
+      cursor: pointer; border: none; background: none; color: var(--text3);
+      font-family: var(--font-en); font-size: 10px; font-weight: 600; letter-spacing: 0.3px;
+      transition: color 0.2s; -webkit-tap-highlight-color: transparent; outline: none;
+    }
+    .nav-item.active { color: var(--accent2); }
+    .nav-icon { font-size: 22px; line-height: 1; transition: transform 0.2s; }
+    .nav-item.active .nav-icon { transform: translateY(-1px); }
+
+    /* ── Search ─────────────────────────────── */
+    .search-container { padding: 16px 20px 8px; }
+    .search-wrapper { position: relative; display: flex; align-items: center; }
+    .search-icon { position: absolute; left: 15px; font-size: 16px; pointer-events: none; opacity: 0.4; }
+    .search-input {
+      width: 100%; padding: 13px 90px 13px 46px;
+      background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+      color: var(--text); font-family: var(--font-en); font-size: 15px; outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s; -webkit-appearance: none;
+    }
+    .search-input::placeholder { color: var(--text3); }
+    .search-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-bg); }
+    .search-btn {
+      position: absolute; right: 7px; padding: 7px 16px;
+      background: var(--accent); color: #fff; border: none; border-radius: var(--radius-sm);
+      font-family: var(--font-en); font-size: 12px; font-weight: 700;
+      cursor: pointer; transition: background 0.2s, transform 0.1s; -webkit-tap-highlight-color: transparent;
+    }
+    .search-btn:hover { background: var(--accent2); }
+    .search-btn:active { transform: scale(0.95); }
+
+    /* Phase 3: Autocomplete dropdown */
+    .autocomplete-drop {
+      position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 50;
+      background: var(--card); border: 1px solid var(--border2);
+      border-radius: var(--radius-sm); overflow: hidden;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+      animation: slideDown 0.15s ease;
+    }
+    @keyframes slideDown {
+      from { opacity: 0; transform: translateY(-4px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .autocomplete-item {
+      padding: 11px 16px; font-size: 14px; color: var(--text);
+      cursor: pointer; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 10px; transition: background 0.1s;
+    }
+    .autocomplete-item:last-child { border-bottom: none; }
+    .autocomplete-item:hover { background: var(--card2); }
+    .autocomplete-icon { font-size: 12px; opacity: 0.4; }
+
+    /* ── History ────────────────────────────── */
+    .history-section { padding: 0 20px 12px; }
+    .section-label { font-size: 10px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 9px; }
+    .history-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .history-chip {
+      padding: 5px 12px; background: var(--card); border: 1px solid var(--border); border-radius: 20px;
+      font-size: 12px; font-weight: 500; color: var(--text2); cursor: pointer;
+      font-family: var(--font-en); transition: all 0.15s; -webkit-tap-highlight-color: transparent;
+    }
+    .history-chip:hover { border-color: var(--accent); color: var(--accent2); background: var(--accent-bg); }
+
+    /* Phase 3: Word of the Day */
+    .wotd-card {
+      margin: 4px 20px 4px; padding: 14px 16px;
+      background: linear-gradient(135deg, rgba(99,102,241,0.1) 0%, rgba(129,140,248,0.04) 100%);
+      border: 1px solid rgba(99,102,241,0.2); border-radius: var(--radius);
+      cursor: pointer; transition: all 0.2s; animation: slideUp 0.28s ease;
+    }
+    .wotd-card:hover { background: rgba(99,102,241,0.15); border-color: rgba(99,102,241,0.35); }
+    .wotd-label { font-size: 9px; font-weight: 700; color: var(--accent2); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; }
+    .wotd-word { font-family: var(--font-title); font-size: 26px; font-weight: 600; color: var(--text); line-height: 1.1; margin-bottom: 3px; }
+    .wotd-meaning { font-family: var(--font-my); font-size: 12px; color: var(--text2); line-height: 1.5; }
+    .wotd-tap { font-size: 10px; color: var(--accent); margin-top: 6px; font-weight: 600; letter-spacing: 0.3px; }
+
+    /* ── Banners ────────────────────────────── */
+    .typo-banner {
+      margin: 0 20px 12px; padding: 11px 14px;
+      background: var(--gold-bg); border: 1px solid rgba(245,158,11,0.2);
+      border-radius: var(--radius-sm); display: flex; align-items: center;
+      gap: 6px; font-size: 13px; color: var(--text2); flex-wrap: wrap;
+    }
+    .typo-suggest { color: var(--gold); font-weight: 700; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+    .error-banner {
+      margin: 4px 20px 12px; padding: 13px 15px;
+      background: var(--red-bg); border: 1px solid rgba(239,68,68,0.2);
+      border-radius: var(--radius-sm); font-size: 13px; color: #f87171; line-height: 1.6;
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    }
+    /* Phase 3: Retry button */
+    .retry-btn {
+      flex-shrink: 0; padding: 5px 12px;
+      background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.3);
+      border-radius: 6px; color: #f87171; font-size: 11px; font-weight: 700;
+      cursor: pointer; font-family: var(--font-en); white-space: nowrap; transition: all 0.15s;
+    }
+    .retry-btn:hover { background: rgba(239,68,68,0.25); }
+
+    /* ── Skeleton ────────────────────────────── */
+    .skeleton-card {
+      margin: 4px 20px 12px; background: var(--card);
+      border: 1px solid var(--border); border-radius: var(--radius); padding: 20px;
+    }
+    .skeleton {
+      background: linear-gradient(90deg, var(--card) 25%, var(--card2) 50%, var(--card) 75%);
+      background-size: 200% 100%; animation: shimmer 1.4s infinite; border-radius: 6px;
+    }
+    @keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+    @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* ── Word Card ──────────────────────────── */
+    .word-card {
+      margin: 4px 20px 16px; background: var(--card);
+      border: 1px solid var(--border); border-radius: var(--radius);
+      overflow: hidden; animation: slideUp 0.28s ease;
+    }
+    .word-header {
+      padding: 20px 20px 16px; border-bottom: 1px solid var(--border);
+      background: linear-gradient(135deg, var(--card) 0%, rgba(99,102,241,0.04) 100%);
+    }
+    .word-title { font-family: var(--font-title); font-size: 38px; font-weight: 600; line-height: 1.1; letter-spacing: -0.5px; color: var(--text); margin-bottom: 10px; }
+    .word-meta { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .form-badges { display: flex; gap: 5px; flex-wrap: wrap; }
+    .form-badge { padding: 3px 8px; border-radius: 5px; font-size: 9px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; }
+    .form-badge.noun { background: rgba(99,102,241,0.15); color: var(--accent2); }
+    .form-badge.verb { background: rgba(16,185,129,0.15); color: #34d399; }
+    .form-badge.adj  { background: rgba(245,158,11,0.15); color: var(--gold); }
+    .form-badge.adv  { background: rgba(239,68,68,0.15);  color: #f87171; }
+    .save-btn {
+      flex-shrink: 0; padding: 7px 14px; border: 1px solid var(--border2);
+      border-radius: var(--radius-sm); background: transparent; color: var(--text2);
+      font-family: var(--font-en); font-size: 11px; font-weight: 700;
+      cursor: pointer; display: flex; align-items: center; gap: 5px;
+      transition: all 0.2s; -webkit-tap-highlight-color: transparent;
+    }
+    .save-btn.saved { background: rgba(16,185,129,0.1); border-color: rgba(16,185,129,0.3); color: #34d399; }
+    .save-btn:hover:not(.saved) { border-color: var(--accent); color: var(--accent2); background: var(--accent-bg); }
+
+    /* ── Info Sections ──────────────────────── */
+    .info-section { padding: 14px 20px; border-bottom: 1px solid var(--border); }
+    .info-section:last-child { border-bottom: none; }
+    .info-label { font-size: 9px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 8px; }
+    .meaning-en { font-size: 15px; color: var(--text); line-height: 1.65; margin-bottom: 8px; }
+    .meaning-my { font-family: var(--font-my); font-size: 15px; color: var(--gold); line-height: 1.9; }
+    .forms-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+    .form-item { background: var(--card2); border-radius: 8px; padding: 9px 12px; }
+    .form-type { font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 2px; }
+    .form-type.noun { color: var(--accent2); } .form-type.verb { color: #34d399; }
+    .form-type.adj  { color: var(--gold); }     .form-type.adv  { color: #f87171; }
+    .form-value { font-size: 14px; color: var(--text); font-weight: 500; }
+
+    /* ── Chips ──────────────────────────────── */
+    .chips-row { display: flex; flex-wrap: wrap; gap: 6px; }
+    .chip {
+      padding: 6px 13px; border-radius: 20px; font-size: 13px; font-weight: 500;
+      cursor: pointer; font-family: var(--font-en); transition: all 0.15s;
+      -webkit-tap-highlight-color: transparent; border: 1px solid transparent;
+    }
+    .chip.synonym { background: var(--accent-bg); border-color: rgba(99,102,241,0.25); color: var(--accent2); }
+    .chip.synonym:hover { background: rgba(99,102,241,0.2); }
+    .chip.antonym { background: var(--red-bg); border-color: rgba(239,68,68,0.2); color: #f87171; }
+    .chip.antonym:hover { background: rgba(239,68,68,0.15); }
+    /* Phase 3: Related words chip */
+    .chip.related { background: var(--green-bg); border-color: rgba(16,185,129,0.2); color: #34d399; }
+    .chip.related:hover { background: rgba(16,185,129,0.15); }
+
+    /* ── Examples ───────────────────────────── */
+    .example-item { padding: 11px 0; border-bottom: 1px solid var(--border); }
+    .example-item:first-child { padding-top: 0; }
+    .example-item:last-child  { padding-bottom: 0; border-bottom: none; }
+    .example-en { font-size: 14px; font-style: italic; color: var(--text); line-height: 1.6; margin-bottom: 3px; }
+    .example-my { font-family: var(--font-my); font-size: 13px; color: var(--text2); line-height: 1.8; }
+
+    /* ── Modal ──────────────────────────────── */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.75);
+      backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+      display: flex; align-items: flex-end; justify-content: center; z-index: 200;
+      animation: fadeIn 0.2s ease;
+    }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    .modal-sheet {
+      width: 100%; max-width: 480px; background: var(--card);
+      border-radius: 24px 24px 0 0; border: 1px solid var(--border2);
+      border-bottom: none; padding: 10px 24px 48px; animation: slideUp 0.3s ease;
+    }
+    .modal-handle { width: 36px; height: 4px; background: var(--border2); border-radius: 2px; margin: 10px auto 20px; }
+    .modal-title { font-family: var(--font-title); font-size: 26px; font-weight: 600; margin-bottom: 6px; }
+    .modal-desc { font-size: 13px; color: var(--text2); line-height: 1.7; margin-bottom: 20px; }
+    .modal-input {
+      width: 100%; padding: 13px 15px; background: var(--bg);
+      border: 1px solid var(--border2); border-radius: var(--radius-sm);
+      color: var(--text); font-family: var(--font-en); font-size: 14px;
+      outline: none; margin-bottom: 10px; transition: border-color 0.2s; -webkit-appearance: none;
+    }
+    .modal-input:focus { border-color: var(--accent); }
+    .modal-link { display: block; font-size: 12px; color: var(--accent2); text-decoration: none; margin-bottom: 20px; }
+    .btn-primary {
+      width: 100%; padding: 14px; background: var(--accent); color: #fff; border: none;
+      border-radius: var(--radius-sm); font-family: var(--font-en); font-size: 15px; font-weight: 700;
+      cursor: pointer; transition: background 0.2s, transform 0.1s; -webkit-tap-highlight-color: transparent;
+    }
+    .btn-primary:not(:disabled):hover { background: var(--accent2); }
+    .btn-primary:not(:disabled):active { transform: scale(0.98); }
+    .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* ── Shared ─────────────────────────────── */
+    .section-wrap { padding: 20px; }
+    .section-title { font-family: var(--font-title); font-size: 24px; font-weight: 600; margin-bottom: 16px; }
+    .panel-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 14px; }
+    .panel-row { padding: 13px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .panel-row:last-child { border-bottom: none; }
+    .panel-row-label { font-size: 14px; font-weight: 500; color: var(--text); }
+    .panel-row-value { font-size: 11px; color: var(--text3); font-family: monospace; letter-spacing: 0.5px; }
+    .icon-btn { flex-shrink: 0; padding: 5px 11px; background: var(--card2); border: 1px solid var(--border); border-radius: 6px; color: var(--accent2); font-size: 11px; font-weight: 700; cursor: pointer; font-family: var(--font-en); transition: all 0.15s; }
+    .icon-btn:hover { border-color: var(--accent); background: var(--accent-bg); }
+    .icon-btn.danger { color: #f87171; }
+    .icon-btn.danger:hover { border-color: rgba(239,68,68,0.4); background: var(--red-bg); }
+    .empty-state { text-align: center; padding: 48px 24px; color: var(--text3); font-size: 14px; line-height: 1.7; }
+    .empty-state-icon { font-size: 36px; margin-bottom: 10px; }
+    .text-btn { font-size: 11px; color: var(--text3); cursor: pointer; background: none; border: none; font-family: var(--font-en); padding: 0; text-decoration: underline; text-underline-offset: 2px; }
+    .text-btn:hover { color: var(--accent2); }
+
+    /* Phase 3: Stats grid */
+    .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; }
+    .stat-chip { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px 10px; text-align: center; }
+    .stat-num { font-family: var(--font-title); font-size: 26px; color: var(--accent2); line-height: 1; }
+    .stat-label { font-size: 9px; color: var(--text3); font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; margin-top: 4px; }
+
+    /* Saved word list */
+    .saved-word-item { padding: 13px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 10px; transition: background 0.15s; }
+    .saved-word-item:last-child { border-bottom: none; }
+    .saved-word-item:hover { background: rgba(255,255,255,0.015); }
+    .saved-word-name { font-family: var(--font-title); font-size: 20px; color: var(--text); line-height: 1.1; }
+    .saved-word-meaning { font-family: var(--font-my); font-size: 11px; color: var(--text3); margin-top: 3px; line-height: 1.4; }
+    /* Phase 3: Frequency badge */
+    .freq-badge { padding: 2px 7px; background: var(--card2); border: 1px solid var(--border); border-radius: 4px; font-size: 10px; color: var(--text3); white-space: nowrap; }
+
+    /* ── QUIZ ───────────────────────────────── */
+    .quiz-idle-icon { font-size: 56px; text-align: center; display: block; margin-bottom: 14px; }
+    .quiz-idle-title { font-family: var(--font-title); font-size: 28px; font-weight: 600; text-align: center; margin-bottom: 8px; }
+    .quiz-idle-desc { font-size: 14px; color: var(--text2); text-align: center; line-height: 1.7; margin-bottom: 22px; }
+    .quiz-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 20px; }
+    .quiz-stat { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 16px; text-align: center; }
+    .quiz-stat-num { font-family: var(--font-title); font-size: 32px; color: var(--accent2); line-height: 1; }
+    .quiz-stat-label { font-size: 10px; color: var(--text3); font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; margin-top: 4px; }
+
+    /* Phase 3: Smart quiz indicator */
+    .smart-quiz-note {
+      margin-bottom: 14px; padding: 10px 14px;
+      background: var(--accent-bg); border: 1px solid rgba(99,102,241,0.2);
+      border-radius: var(--radius-sm); font-size: 12px; color: var(--accent2); line-height: 1.5;
+    }
+
+    .quiz-prog-wrap { padding: 16px 20px 10px; }
+    .quiz-prog-bar { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; margin-bottom: 8px; }
+    .quiz-prog-fill { height: 100%; background: linear-gradient(90deg, var(--accent) 0%, var(--accent2) 100%); border-radius: 2px; transition: width 0.4s ease; }
+    .quiz-q-row { display: flex; justify-content: space-between; font-size: 11px; color: var(--text3); font-weight: 600; }
+
+    .question-card { margin: 0 20px 12px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; animation: slideUp 0.25s ease; }
+    .q-type-badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 20px; font-size: 9px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 12px; }
+    .q-type-a { background: var(--accent-bg); color: var(--accent2); border: 1px solid rgba(99,102,241,0.2); }
+    .q-type-b { background: var(--gold-bg);   color: var(--gold);    border: 1px solid rgba(245,158,11,0.2); }
+    .question-text { font-family: var(--font-title); font-size: 21px; line-height: 1.45; color: var(--text); }
+    .question-text.my-text { font-family: var(--font-my); font-size: 18px; line-height: 1.7; }
+
+    .options-wrap { padding: 0 20px 12px; display: flex; flex-direction: column; gap: 8px; }
+    .option-btn { display: flex; align-items: center; gap: 12px; padding: 12px 14px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; font-family: var(--font-en); text-align: left; transition: all 0.2s; -webkit-tap-highlight-color: transparent; width: 100%; }
+    .option-btn:hover:not(:disabled) { border-color: var(--accent); background: var(--accent-bg); }
+    .option-btn:disabled { cursor: default; }
+    .option-btn.correct { background: rgba(16,185,129,0.08); border-color: rgba(16,185,129,0.4); }
+    .option-btn.wrong   { background: rgba(239,68,68,0.08);  border-color: rgba(239,68,68,0.4); }
+    .option-letter { width: 26px; height: 26px; border-radius: 6px; flex-shrink: 0; background: var(--card2); display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800; color: var(--text3); transition: all 0.2s; }
+    .option-btn.correct .option-letter { background: rgba(16,185,129,0.2); color: #34d399; }
+    .option-btn.wrong   .option-letter { background: rgba(239,68,68,0.2);  color: #f87171; }
+    .option-text { font-size: 14px; color: var(--text); line-height: 1.5; flex: 1; }
+    .option-text.my { font-family: var(--font-my); font-size: 13px; }
+    .option-marker { font-size: 16px; flex-shrink: 0; }
+
+    .explanation-box { margin: 0 20px 12px; padding: 11px 14px; background: var(--green-bg); border: 1px solid rgba(16,185,129,0.2); border-radius: var(--radius-sm); font-size: 13px; color: var(--text2); line-height: 1.6; animation: slideUp 0.2s ease; }
+    .next-btn-wrap { padding: 0 20px 20px; }
+    .next-btn { width: 100%; padding: 13px; background: var(--card); border: 1px solid var(--border2); border-radius: var(--radius-sm); color: var(--text); font-family: var(--font-en); font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; -webkit-tap-highlight-color: transparent; }
+    .next-btn:hover { background: var(--card2); border-color: var(--accent); }
+
+    .score-section { padding: 28px 20px 20px; text-align: center; }
+    .score-circle { width: 120px; height: 120px; border-radius: 50%; margin: 0 auto 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 3px solid; animation: popIn 0.4s ease; }
+    @keyframes popIn { from { transform: scale(0.7); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    .score-circle.excellent { border-color: #34d399; background: rgba(16,185,129,0.1); }
+    .score-circle.good      { border-color: var(--gold); background: rgba(245,158,11,0.1); }
+    .score-circle.poor      { border-color: #f87171; background: rgba(239,68,68,0.1); }
+    .score-num { font-family: var(--font-title); font-size: 34px; font-weight: 600; line-height: 1; }
+    .score-circle.excellent .score-num { color: #34d399; }
+    .score-circle.good      .score-num { color: var(--gold); }
+    .score-circle.poor      .score-num { color: #f87171; }
+    .score-pct { font-size: 12px; color: var(--text3); font-weight: 600; margin-top: 2px; }
+    .score-title { font-family: var(--font-title); font-size: 24px; margin-bottom: 4px; }
+    .score-desc  { font-size: 13px; color: var(--text2); margin-bottom: 20px; }
+    .score-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+
+    .wrongs-section { padding: 0 20px 24px; }
+    .wrong-item { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 13px 14px; margin-bottom: 8px; animation: slideUp 0.3s ease; }
+    .wrong-word { font-family: var(--font-title); font-size: 18px; margin-bottom: 5px; }
+    .wrong-detail { font-size: 12px; line-height: 1.5; }
+    .wrong-detail.red   { color: #f87171; } .wrong-detail.green { color: #34d399; }
+    .wrong-detail.my { font-family: var(--font-my); }
+    .wrong-explain { font-size: 12px; color: var(--text3); line-height: 1.6; font-style: italic; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--border); }
+
+    /* ── DAILY ──────────────────────────────── */
+    .word-toggles { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+    .word-toggle { padding: 6px 13px; border-radius: 20px; font-size: 12px; font-weight: 600; cursor: pointer; border: 1px solid var(--border); background: var(--card); color: var(--text3); transition: all 0.15s; font-family: var(--font-en); -webkit-tap-highlight-color: transparent; }
+    .word-toggle.on { background: var(--accent-bg); border-color: rgba(99,102,241,0.3); color: var(--accent2); }
+    .toggle-controls { display: flex; gap: 10px; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+
+    .context-card { margin: 0 20px 12px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; animation: slideUp 0.3s ease; }
+    .context-header { padding: 11px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; background: linear-gradient(135deg, var(--card) 0%, rgba(99,102,241,0.03) 100%); }
+    .context-icon { font-size: 18px; }
+    .context-title { font-size: 13px; font-weight: 700; color: var(--text); }
+    .sentence-item { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: flex-start; gap: 10px; }
+    .sentence-item:last-child { border-bottom: none; }
+    .sentence-text { flex: 1; font-size: 14px; color: var(--text); line-height: 1.65; }
+    .sentence-text mark { background: transparent; color: var(--accent2); font-weight: 700; }
+    .copy-btn { flex-shrink: 0; padding: 4px 9px; margin-top: 2px; background: var(--card2); border: 1px solid var(--border); border-radius: 6px; font-size: 12px; color: var(--text3); cursor: pointer; font-family: var(--font-en); transition: all 0.15s; -webkit-tap-highlight-color: transparent; }
+    .copy-btn:hover { border-color: var(--accent); color: var(--accent2); }
+    .copy-btn.copied { border-color: rgba(16,185,129,0.3); color: #34d399; }
+
+    /* Profile quiz history */
+    .qhist-item { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+    .qhist-item:last-child { border-bottom: none; }
+    .qhist-score { font-family: var(--font-title); font-size: 22px; line-height: 1; }
+    .qhist-score.good { color: #34d399; } .qhist-score.ok { color: var(--gold); } .qhist-score.bad { color: #f87171; }
+    .qhist-date { font-size: 11px; color: var(--text3); margin-top: 3px; }
+
+    @supports (padding-top: env(safe-area-inset-top)) {
+      .app-header { padding-top: max(16px, env(safe-area-inset-top)); }
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(() => {});
+      });
+    }
+  </script>
+
+  <!-- Firebase Init -->
+  <script>
+    const firebaseConfig = {
+      apiKey:            "AIzaSyCioLheOGt0TjrvfBQ3kyhGTW72jErfEZg",
+      authDomain:        "mingalarpar-dictornary.firebaseapp.com",
+      projectId:         "mingalarpar-dictornary",
+      storageBucket:     "mingalarpar-dictornary.firebasestorage.app",
+      messagingSenderId: "386058403870",
+      appId:             "1:386058403870:web:c4e2dce37d4de422d82e0f",
+    };
+    firebase.initializeApp(firebaseConfig);
+    const fbAuth = firebase.auth();
+    const fbDb   = firebase.firestore();
+
+    // Cloud helpers
+    async function cloudSave(uid, saved) {
+      await fbDb.collection('users').doc(uid).set({ saved }, { merge: true });
+    }
+    async function cloudLoad(uid) {
+      const doc = await fbDb.collection('users').doc(uid).get();
+      return doc.exists ? (doc.data().saved || []) : [];
+    }
+  </script>
+
+  <script type="text/babel">
+    const { useState, useEffect, useCallback, useRef } = React;
+
+    // ── Storage ──────────────────────────────────────────────
+    const KEYS = {
+      API:       'ming_api',
+      HISTORY:   'ming_hist',
+      SAVED:     'ming_saved',
+      QUIZ_HIST: 'ming_quiz_hist',
+      FREQ:      'ming_freq',   // {word: searchCount}
+      WOTD:      'ming_wotd',   // {word, wordObj, date}
+    };
+
+    const lsGet = (k, fb = null) => {
+      try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : fb; }
+      catch { return fb; }
+    };
+    const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+
+    // ── Groq API (browser CORS supported) ────────────────────
+    async function gemini(apiKey, prompt, temp = 0.1) {
+      const url = `https://api.groq.com/openai/v1/chat/completions`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: 'llama-3.3-70b-versatile',
+          messages: [{ role: 'user', content: prompt }],
+          temperature: temp,
+          max_tokens: 1024,
+        }),
+      });
+      if (!res.ok) {
+        const e = await res.json().catch(() => ({}));
+        throw new Error(e.error?.message || `API Error ${res.status}`);
+      }
+      const data = await res.json();
+      const text = (data.choices?.[0]?.message?.content || '').trim();
+      return text.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
+    }
+
+    // Phase 3: Updated dictionary prompt — added related_words
+    async function fetchWord(word, apiKey) {
+      const raw = await gemini(apiKey, `Analyze the English word or phrase "${word}" and return ONLY valid JSON (no markdown, no code fences) with this exact structure:
+{
+  "word": "correct/normalized form of the input",
+  "corrected_word": null,
+  "english_meaning": "clear concise English definition",
+  "myanmar_meaning": "မြန်မာဘာသာဖြင့် ရှင်းလင်းသောအဓိပ္ပာယ်",
+  "word_forms": {
+    "noun": "noun form or null",
+    "verb": "verb form or null",
+    "adjective": "adjective form or null",
+    "adverb": "adverb form or null"
+  },
+  "synonyms": ["word1","word2","word3","word4"],
+  "antonyms": ["word1","word2","word3"],
+  "related_words": ["word1","word2","word3","word4"],
+  "examples": [
+    {"en": "First example sentence.", "my": "ပထမဥပမာကြောင်း မြန်မာဘာသာ။"},
+    {"en": "Second example sentence.", "my": "ဒုတိယဥပမာကြောင်း မြန်မာဘာသာ။"}
+  ]
+}
+related_words: 4 semantically related words worth learning next (not synonyms/antonyms).
+If input has a typo, set corrected_word to the correct spelling. Otherwise null.
+Return raw JSON only.`);
+      return JSON.parse(raw);
+    }
+
+    // Phase 3: Smart quiz — pass search frequencies to Gemini
+    async function fetchQuiz(saved, apiKey, freqs = {}) {
+      const numQ = Math.min(10, saved.length * 2);
+      // Sort by frequency (most searched first)
+      const wordList = [...saved]
+        .sort((a, b) => (freqs[b.word] || 0) - (freqs[a.word] || 0))
+        .map(w => ({ word: w.word, myanmar_meaning: w.myanmar_meaning, freq: freqs[w.word] || 0 }));
+
+      const freqNote = wordList.some(w => w.freq > 0)
+        ? `\nUser search frequency (higher = more important to test): ${wordList.map(w => `${w.word}(${w.freq}x)`).join(', ')}\nGenerate MORE questions about high-frequency words.`
+        : '';
+
+      const raw = await gemini(apiKey, `Quiz generator for English-Myanmar language learning.
+
+Word list:
+${JSON.stringify(wordList.map(w => ({ word: w.word, myanmar_meaning: w.myanmar_meaning })))}
+${freqNote}
+
+Generate exactly ${numQ} MCQ questions. Mix Type A (English→Myanmar) and Type B (Myanmar→English) evenly.
+
+Rules:
+- Each question: exactly 4 options
+- Wrong choices: from other words in the list or plausible alternatives
+- Shuffle correct answer position randomly
+- 1-sentence explanation per question
+
+Return ONLY a raw JSON array (no markdown):
+[{
+  "type": "A",
+  "word": "english_word",
+  "question_text": "What is the Myanmar meaning of 'word'?",
+  "correct": "correct answer text",
+  "options": ["opt1","opt2","opt3","opt4"],
+  "explanation": "Brief explanation."
+}]`, 0.3);
+      return JSON.parse(raw);
+    }
+
+    // Daily sentences (unchanged)
+    async function fetchDaily(words, apiKey) {
+      const raw = await gemini(apiKey, `I'm learning English. My vocabulary words: ${words.map(w => w.word).join(', ')}
+
+Create natural conversational English sentences using these words in 4 daily contexts (2-3 sentences each).
+Sentences must feel real, not textbook-style. Try to use each word at least once.
+
+Return ONLY raw JSON:
+{
+  "morning": [{"sentence":"...","words_used":["word"]}],
+  "work":    [{"sentence":"...","words_used":["word"]}],
+  "social":  [{"sentence":"...","words_used":["word"]}],
+  "evening": [{"sentence":"...","words_used":["word"]}]
+}`, 0.7);
+      return JSON.parse(raw);
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // PHASE 3: GLOBAL COMPONENTS
+    // ─────────────────────────────────────────────────────────
+
+    // Online/Offline detection
+    function OfflineBanner() {
+      const [online, setOnline] = useState(() => navigator.onLine);
+      useEffect(() => {
+        const on  = () => setOnline(true);
+        const off = () => setOnline(false);
+        window.addEventListener('online', on);
+        window.addEventListener('offline', off);
+        return () => { window.removeEventListener('online', on); window.removeEventListener('offline', off); };
+      }, []);
+      if (online) return null;
+      return <div className="offline-banner">📡 Offline — Search မလုပ်နိုင်သေးပါ (Saved words ကြည့်ရသေးသည်)</div>;
+    }
+
+    // Word of the Day
+    function getWordOfDay(saved) {
+      if (!saved.length) return null;
+      const today  = new Date().toDateString();
+      const stored = lsGet(KEYS.WOTD, null);
+      if (stored && stored.date === today && saved.some(w => w.word === stored.word)) return stored;
+      const picked = saved[Math.floor(Math.random() * saved.length)];
+      const wotd   = { word: picked.word, wordObj: picked, date: today };
+      lsSet(KEYS.WOTD, wotd);
+      return wotd;
+    }
+
+    function WordOfDay({ saved, onSearch }) {
+      const wotd = getWordOfDay(saved);
+      if (!wotd) return null;
+      return (
+        <div className="wotd-card" onClick={() => onSearch(wotd.word)}>
+          <div className="wotd-label">✨ Word of the Day</div>
+          <div className="wotd-word">{wotd.word}</div>
+          <div className="wotd-meaning">{wotd.wordObj?.myanmar_meaning || ''}</div>
+          <div className="wotd-tap">Search မည် →</div>
+        </div>
+      );
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // DICTIONARY
+    // ─────────────────────────────────────────────────────────
+    function SkeletonCard() {
+      return (
+        <div className="skeleton-card">
+          <div className="skeleton" style={{height:36, width:'55%', marginBottom:12}} />
+          <div className="skeleton" style={{height:13, width:'35%', marginBottom:20}} />
+          <div className="skeleton" style={{height:14, width:'100%', marginBottom:8}} />
+          <div className="skeleton" style={{height:14, width:'88%', marginBottom:8}} />
+          <div className="skeleton" style={{height:14, width:'75%', marginBottom:18}} />
+          <div style={{display:'flex', gap:8}}>
+            {[72,88,64].map(w => <div key={w} className="skeleton" style={{height:28, width:w, borderRadius:20}} />)}
+          </div>
+        </div>
+      );
+    }
+
+    function ApiKeyModal({ onSave }) {
+      const [key, setKey] = useState('');
+      return (
+        <div className="modal-overlay">
+          <div className="modal-sheet">
+            <div className="modal-handle" />
+            <div className="modal-title">Groq API Key</div>
+            <p className="modal-desc">
+              Dictionary ကိုအသုံးပြုဖို့ Groq API Key လိုအပ်ပါတယ်။<br />
+              console.groq.com မှာ အခမဲ့ရနိုင်ပါတယ် (တစ်နေ့ 14,400 requests)
+            </p>
+            <input
+              className="modal-input" type="password" placeholder="gsk_..."
+              value={key} onChange={e => setKey(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && key.trim() && onSave(key.trim())}
+              autoFocus
+            />
+            <a className="modal-link" href="https://console.groq.com/keys" target="_blank" rel="noreferrer">
+              → Groq Console မှာ API Key ရယူမည်
+            </a>
+            <button className="btn-primary" onClick={() => key.trim() && onSave(key.trim())} disabled={!key.trim()}>
+              သိမ်းမည်
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    function WordResult({ result, isSaved, onSave, onChipClick }) {
+      const f = result.word_forms || {};
+      return (
+        <div className="word-card">
+          <div className="word-header">
+            <div className="word-title">{result.word}</div>
+            <div className="word-meta">
+              <div className="form-badges">
+                {f.noun      && <span className="form-badge noun">n</span>}
+                {f.verb      && <span className="form-badge verb">v</span>}
+                {f.adjective && <span className="form-badge adj">adj</span>}
+                {f.adverb    && <span className="form-badge adv">adv</span>}
+              </div>
+              <button className={`save-btn${isSaved ? ' saved' : ''}`} onClick={onSave}>
+                {isSaved ? '✓ Saved' : '+ Save'}
+              </button>
+            </div>
+          </div>
+
+          <div className="info-section">
+            <div className="info-label">Meaning</div>
+            <div className="meaning-en">{result.english_meaning}</div>
+            <div className="meaning-my">{result.myanmar_meaning}</div>
+          </div>
+
+          {Object.values(f).some(Boolean) && (
+            <div className="info-section">
+              <div className="info-label">Word Forms</div>
+              <div className="forms-grid">
+                {f.noun      && <div className="form-item"><div className="form-type noun">Noun</div><div className="form-value">{f.noun}</div></div>}
+                {f.verb      && <div className="form-item"><div className="form-type verb">Verb</div><div className="form-value">{f.verb}</div></div>}
+                {f.adjective && <div className="form-item"><div className="form-type adj">Adjective</div><div className="form-value">{f.adjective}</div></div>}
+                {f.adverb    && <div className="form-item"><div className="form-type adv">Adverb</div><div className="form-value">{f.adverb}</div></div>}
+              </div>
+            </div>
+          )}
+
+          {result.synonyms?.length > 0 && (
+            <div className="info-section">
+              <div className="info-label">Synonyms</div>
+              <div className="chips-row">
+                {result.synonyms.map(s => <button key={s} className="chip synonym" onClick={() => onChipClick(s)}>{s}</button>)}
+              </div>
+            </div>
+          )}
+
+          {result.antonyms?.length > 0 && (
+            <div className="info-section">
+              <div className="info-label">Antonyms</div>
+              <div className="chips-row">
+                {result.antonyms.map(a => <button key={a} className="chip antonym" onClick={() => onChipClick(a)}>{a}</button>)}
+              </div>
+            </div>
+          )}
+
+          {/* Phase 3: Related Words */}
+          {result.related_words?.length > 0 && (
+            <div className="info-section">
+              <div className="info-label">Related Words</div>
+              <div className="chips-row">
+                {result.related_words.map(w => <button key={w} className="chip related" onClick={() => onChipClick(w)}>{w}</button>)}
+              </div>
+            </div>
+          )}
+
+          {result.examples?.length > 0 && (
+            <div className="info-section">
+              <div className="info-label">Examples</div>
+              {result.examples.map((ex, i) => (
+                <div key={i} className="example-item">
+                  <div className="example-en">"{ex.en}"</div>
+                  <div className="example-my">{ex.my}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    function DictionaryTab({ apiKey, saved, onSaveToggle }) {
+      const [query, setQuery]         = useState('');
+      const [searchedQ, setSearchedQ] = useState('');
+      const [result, setResult]       = useState(null);
+      const [loading, setLoading]     = useState(false);
+      const [error, setError]         = useState(null);
+      const [history, setHistory]     = useState(() => lsGet(KEYS.HISTORY, []));
+      // Phase 3: autocomplete state
+      const [sugg, setSugg]           = useState([]);
+      const [showSugg, setShowSugg]   = useState(false);
+      const blurTimer                 = useRef(null);
+
+      // Phase 3: build autocomplete suggestions
+      const buildSugg = (val) => {
+        if (val.length < 2) { setSugg([]); setShowSugg(false); return; }
+        const q = val.toLowerCase();
+        const fromSaved   = saved.filter(w => w.word.toLowerCase().includes(q)).map(w => ({ text: w.word, icon: '🔖' }));
+        const fromHistory = history.filter(h => h.toLowerCase().includes(q) && !fromSaved.find(s => s.text.toLowerCase() === h.toLowerCase())).map(h => ({ text: h, icon: '🕐' }));
+        const list = [...fromSaved, ...fromHistory].slice(0, 6);
+        setSugg(list);
+        setShowSugg(list.length > 0);
+      };
+
+      const handleQueryChange = (e) => {
+        const val = e.target.value;
+        setQuery(val);
+        buildSugg(val);
+      };
+
+      const doSearch = useCallback(async (word) => {
+        const w = word.trim();
+        if (!w) return;
+        setQuery(w); setSearchedQ(w);
+        setShowSugg(false); setSugg([]);
+        setLoading(true); setError(null); setResult(null);
+        try {
+          const data = await fetchWord(w, apiKey);
+          setResult(data);
+          // Phase 3: track search frequency
+          const freq = lsGet(KEYS.FREQ, {});
+          freq[data.word] = (freq[data.word] || 0) + 1;
+          lsSet(KEYS.FREQ, freq);
+          // update history
+          setHistory(prev => {
+            const next = [w, ...prev.filter(h => h.toLowerCase() !== w.toLowerCase())].slice(0, 10);
+            lsSet(KEYS.HISTORY, next);
+            return next;
+          });
+        } catch (e) { setError(e.message); }
+        finally { setLoading(false); }
+      }, [apiKey]);
+
+      const isSaved  = result && saved.some(s => s.word?.toLowerCase() === result.word?.toLowerCase());
+      const showTypo = result && result.word && searchedQ.toLowerCase() !== result.word.toLowerCase();
+      const showWotD = !result && !loading && !error && saved.length > 0;
+
+      return (
+        <div className="tab-fade">
+          {/* Search bar */}
+          <div className="search-container">
+            <div className="search-wrapper">
+              <span className="search-icon">🔍</span>
+              <input
+                className="search-input" type="text" autoComplete="off" autoCorrect="off" spellCheck="false"
+                placeholder="Search English word or phrase..."
+                value={query}
+                onChange={handleQueryChange}
+                onKeyDown={e => e.key === 'Enter' && doSearch(query)}
+                onFocus={() => query.length >= 2 && setShowSugg(sugg.length > 0)}
+                onBlur={() => { blurTimer.current = setTimeout(() => setShowSugg(false), 160); }}
+              />
+              <button className="search-btn" onClick={() => doSearch(query)}>Search</button>
+
+              {/* Phase 3: Autocomplete dropdown */}
+              {showSugg && (
+                <div className="autocomplete-drop">
+                  {sugg.map((s, i) => (
+                    <div key={i} className="autocomplete-item" onMouseDown={() => { clearTimeout(blurTimer.current); doSearch(s.text); }}>
+                      <span className="autocomplete-icon">{s.icon}</span>
+                      <span>{s.text}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Phase 3: Word of the Day */}
+          {showWotD && <WordOfDay saved={saved} onSearch={doSearch} />}
+
+          {/* Recent searches */}
+          {!result && !loading && history.length > 0 && (
+            <div className="history-section">
+              <div className="section-label">Recent</div>
+              <div className="history-chips">
+                {history.map(h => <button key={h} className="history-chip" onClick={() => doSearch(h)}>{h}</button>)}
+              </div>
+            </div>
+          )}
+
+          {showTypo && (
+            <div className="typo-banner">
+              <span>💡 Showing results for</span>
+              <span className="typo-suggest" onClick={() => doSearch(result.word)}>{result.word}</span>
+              <span>(corrected from "{searchedQ}")</span>
+            </div>
+          )}
+
+          {loading && <SkeletonCard />}
+
+          {/* Phase 3: Error with retry button */}
+          {error && (
+            <div className="error-banner">
+              <span>⚠️ {error}</span>
+              <button className="retry-btn" onClick={() => doSearch(searchedQ)}>Retry</button>
+            </div>
+          )}
+
+          {result && !loading && (
+            <WordResult
+              result={result} isSaved={isSaved}
+              onSave={() => onSaveToggle(result)} onChipClick={doSearch}
+            />
+          )}
+
+          {!result && !loading && !error && history.length === 0 && !saved.length && (
+            <div className="empty-state">
+              <div className="empty-state-icon">📚</div>
+              <div>Search any English word to see its<br />meaning in Myanmar</div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // QUIZ
+    // ─────────────────────────────────────────────────────────
+    function isMyanmarText(t) { return /[\u1000-\u109F\uAA60-\uAA7F]/.test(String(t)); }
+
+    function QuizIdle({ saved, freqs, onStart, minWords, error }) {
+      const canStart  = saved.length >= minWords;
+      const numQ      = Math.min(10, saved.length * 2);
+      const hasFreqs  = Object.keys(freqs).length > 0;
+      const topWord   = hasFreqs
+        ? Object.entries(freqs).sort((a,b) => b[1]-a[1])[0]
+        : null;
+
+      return (
+        <div className="section-wrap tab-fade">
+          <span className="quiz-idle-icon">🧠</span>
+          <div className="quiz-idle-title">Quiz</div>
+          <div className="quiz-idle-desc">
+            {canStart ? 'Saved words တွေကို MCQ quiz ဖြင့် စစ်ဆေးမည်' : `Quiz ဖြေဖို့ words ${minWords - saved.length} ခု ထပ်သိမ်းပါ`}
+          </div>
+
+          {/* Phase 3: Smart quiz note */}
+          {canStart && topWord && (
+            <div className="smart-quiz-note">
+              🎯 <strong>Smart Quiz:</strong> "{topWord[0]}" ကို {topWord[1]} ကြိမ် search လုပ်ထားသဖြင့် ဒီ word ကို ပိုမေးမည်
+            </div>
+          )}
+
+          <div className="quiz-stats">
+            <div className="quiz-stat">
+              <div className="quiz-stat-num">{saved.length}</div>
+              <div className="quiz-stat-label">Saved Words</div>
+            </div>
+            <div className="quiz-stat">
+              <div className="quiz-stat-num">{canStart ? numQ : '—'}</div>
+              <div className="quiz-stat-label">Questions</div>
+            </div>
+          </div>
+
+          {error && <div className="error-banner" style={{marginBottom:12}}><span>⚠️ {error}</span></div>}
+
+          <button className="btn-primary" onClick={onStart} disabled={!canStart}>
+            {canStart ? '🚀 Quiz စပါမည်' : `Words ${minWords - saved.length} ခု ထပ်လိုသည်`}
+          </button>
+
+          {!canStart && (
+            <p style={{textAlign:'center', marginTop:12, fontSize:13, color:'var(--text3)'}}>
+              Dictionary မှ words {minWords} ခုအထိ Save ပါ
+            </p>
+          )}
+        </div>
+      );
+    }
+
+    function QuizLoadingState() {
+      return (
+        <div className="tab-fade">
+          <div style={{textAlign:'center', padding:'36px 20px 20px'}}>
+            <div style={{fontSize:48, marginBottom:12}}>⏳</div>
+            <div style={{color:'var(--text2)', fontSize:14}}>Smart quiz questions တည်ဆောက်နေသည်...</div>
+          </div>
+          <div className="skeleton-card">
+            <div className="skeleton" style={{height:20, width:'40%', marginBottom:14, borderRadius:20}} />
+            <div className="skeleton" style={{height:26, width:'88%', marginBottom:20}} />
+            {[1,2,3,4].map(i => <div key={i} className="skeleton" style={{height:46, marginBottom:8, borderRadius:10}} />)}
+          </div>
+        </div>
+      );
+    }
+
+    function QuizQuestion({ question, current, total, selectedOption, answered, onSelect, onNext }) {
+      const letters  = ['A','B','C','D'];
+      const progress = (current / total) * 100;
+
+      const optClass = (opt) => {
+        if (!answered) return '';
+        if (opt === question.correct) return 'correct';
+        if (opt === selectedOption)   return 'wrong';
+        return '';
+      };
+
+      return (
+        <div>
+          <div className="quiz-prog-wrap">
+            <div className="quiz-prog-bar">
+              <div className="quiz-prog-fill" style={{width:`${progress}%`}} />
+            </div>
+            <div className="quiz-q-row">
+              <span>Question {current + 1} / {total}</span>
+              <span>{Math.round(progress)}%</span>
+            </div>
+          </div>
+
+          <div className="question-card">
+            <span className={`q-type-badge ${question.type === 'A' ? 'q-type-a' : 'q-type-b'}`}>
+              {question.type === 'A' ? 'English → Myanmar' : 'Myanmar → English'}
+            </span>
+            <div className={`question-text${isMyanmarText(question.question_text) ? ' my-text' : ''}`}>
+              {question.question_text}
+            </div>
+          </div>
+
+          <div className="options-wrap">
+            {(question.options || []).map((opt, i) => (
+              <button key={opt} className={`option-btn ${optClass(opt)}`} onClick={() => onSelect(opt)} disabled={answered}>
+                <div className="option-letter">{letters[i]}</div>
+                <div className={`option-text${isMyanmarText(opt) ? ' my' : ''}`}>{opt}</div>
+                {answered && opt === question.correct && <span className="option-marker">✓</span>}
+                {answered && opt === selectedOption && opt !== question.correct && <span className="option-marker">✗</span>}
+              </button>
+            ))}
+          </div>
+
+          {answered && question.explanation && (
+            <div className="explanation-box">💡 {question.explanation}</div>
+          )}
+
+          {answered && (
+            <div className="next-btn-wrap">
+              <button className="next-btn" onClick={onNext}>
+                {current + 1 >= total ? 'ရလဒ်ကြည့်မည် 🎯' : 'နောက်မေးခွန်း →'}
+              </button>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    function QuizDone({ answers, onRetry }) {
+      const score  = answers.filter(a => a.isCorrect).length;
+      const total  = answers.length;
+      const pct    = Math.round((score / total) * 100);
+      const grade  = pct >= 80 ? 'excellent' : pct >= 60 ? 'good' : 'poor';
+      const emoji  = pct >= 80 ? '🎉' : pct >= 60 ? '👍' : '💪';
+      const title  = pct >= 80 ? 'အလွန်ကောင်းသည်!' : pct >= 60 ? 'ကောင်းသည်!' : 'ဆက်ကြိုးစားပါ!';
+      const desc   = pct >= 80 ? 'Words များကို သေချာမှတ်မိနေသည်' : pct >= 60 ? 'Words အများစု သိနေသည်' : 'Words များကို ထပ်မံလေ့လာပါ';
+      const wrongs = answers.filter(a => !a.isCorrect);
+
+      return (
+        <div className="tab-fade">
+          <div className="score-section">
+            <div className={`score-circle ${grade}`}>
+              <div className="score-num">{score}/{total}</div>
+              <div className="score-pct">{pct}%</div>
+            </div>
+            <div className="score-title">{emoji} {title}</div>
+            <div className="score-desc">{desc}</div>
+            <div className="score-actions">
+              <button className="btn-primary" onClick={onRetry} style={{width:'auto', padding:'10px 28px'}}>
+                ထပ်ကြိုးစားမည်
+              </button>
+            </div>
+          </div>
+
+          {wrongs.length > 0 && (
+            <div className="wrongs-section">
+              <div className="section-label" style={{marginBottom:10}}>မှားသောဖြေချက်များ ({wrongs.length})</div>
+              {wrongs.map((a, i) => (
+                <div key={i} className="wrong-item">
+                  <div className="wrong-word">{a.question.word}</div>
+                  <div className={`wrong-detail red${isMyanmarText(a.selected) ? ' my' : ''}`}>✗ သင်ဖြေ: {a.selected}</div>
+                  <div className={`wrong-detail green${isMyanmarText(a.correct) ? ' my' : ''}`}>✓ မှန်သော: {a.correct}</div>
+                  {a.question.explanation && <div className="wrong-explain">{a.question.explanation}</div>}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    function QuizTab({ apiKey, saved }) {
+      const [state, setState]             = useState('idle');
+      const [questions, setQuestions]     = useState([]);
+      const [currentQ, setCurrentQ]       = useState(0);
+      const [userAnswers, setUserAnswers] = useState([]);
+      const [selectedOpt, setSelectedOpt] = useState(null);
+      const [answered, setAnswered]       = useState(false);
+      const [error, setError]             = useState(null);
+      const MIN = 4;
+
+      useEffect(() => {
+        if (state === 'done' && userAnswers.length > 0) {
+          const score = userAnswers.filter(a => a.isCorrect).length;
+          const entry = { date: new Date().toISOString(), score, total: userAnswers.length };
+          lsSet(KEYS.QUIZ_HIST, [entry, ...lsGet(KEYS.QUIZ_HIST, [])].slice(0, 20));
+        }
+      }, [state]);
+
+      const startQuiz = async () => {
+        setState('loading'); setError(null);
+        try {
+          const freqs = lsGet(KEYS.FREQ, {});
+          const qs    = await fetchQuiz(saved, apiKey, freqs);
+          setQuestions(qs); setCurrentQ(0);
+          setUserAnswers([]); setSelectedOpt(null); setAnswered(false);
+          setState('active');
+        } catch (e) { setError(e.message); setState('idle'); }
+      };
+
+      const handleSelect = (opt) => {
+        if (answered) return;
+        setSelectedOpt(opt); setAnswered(true);
+        const q = questions[currentQ];
+        setUserAnswers(prev => [...prev, { selected: opt, correct: q.correct, isCorrect: opt === q.correct, question: q }]);
+      };
+
+      const handleNext = () => {
+        if (currentQ + 1 >= questions.length) setState('done');
+        else { setCurrentQ(n => n + 1); setSelectedOpt(null); setAnswered(false); }
+      };
+
+      const freqs = lsGet(KEYS.FREQ, {});
+      if (state === 'loading') return <QuizLoadingState />;
+      if (state === 'active')  return <QuizQuestion key={currentQ} question={questions[currentQ]} current={currentQ} total={questions.length} selectedOption={selectedOpt} answered={answered} onSelect={handleSelect} onNext={handleNext} />;
+      if (state === 'done')    return <QuizDone answers={userAnswers} onRetry={() => setState('idle')} />;
+      return <QuizIdle saved={saved} freqs={freqs} onStart={startQuiz} minWords={MIN} error={error} />;
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // DAILY USAGE
+    // ─────────────────────────────────────────────────────────
+    const CONTEXTS = [
+      { key: 'morning', icon: '🌅', label: 'Morning Routine' },
+      { key: 'work',    icon: '💼', label: 'At Work / Study' },
+      { key: 'social',  icon: '👥', label: 'Social / Chat' },
+      { key: 'evening', icon: '🌙', label: 'Evening' },
+    ];
+
+    function SentenceItem({ sentence, wordsUsed }) {
+      const [copied, setCopied] = useState(false);
+      const copy = () => {
+        navigator.clipboard?.writeText(sentence).then(() => {
+          setCopied(true); setTimeout(() => setCopied(false), 2000);
+        });
+      };
+      const renderText = () => {
+        if (!wordsUsed?.length) return sentence;
+        const regex = new RegExp(`(${wordsUsed.map(w => w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).join('|')})`, 'gi');
+        return sentence.split(regex).map((p, i) =>
+          wordsUsed.some(w => w.toLowerCase() === p.toLowerCase())
+            ? <mark key={i}>{p}</mark> : p
+        );
+      };
+      return (
+        <div className="sentence-item">
+          <div className="sentence-text">{renderText()}</div>
+          <button className={`copy-btn${copied ? ' copied' : ''}`} onClick={copy}>{copied ? '✓' : '⎘'}</button>
+        </div>
+      );
+    }
+
+    function DailyLoadingState() {
+      return (
+        <div className="tab-fade">
+          <div style={{textAlign:'center', padding:'36px 20px 16px'}}>
+            <div style={{fontSize:48, marginBottom:12}}>✨</div>
+            <div style={{color:'var(--text2)', fontSize:14}}>Daily sentences တည်ဆောက်နေသည်...</div>
+          </div>
+          {CONTEXTS.map(c => (
+            <div key={c.key} className="skeleton-card" style={{marginBottom:10}}>
+              <div className="skeleton" style={{height:12, width:'30%', marginBottom:12}} />
+              {[95,82,88].map((w,i) => <div key={i} className="skeleton" style={{height:14, width:`${w}%`, marginBottom:8}} />)}
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    function DailyTab({ apiKey, saved }) {
+      const [dailyState, setDailyState] = useState('idle');
+      const [selected, setSelected]     = useState(() => saved.map(w => w.word));
+      const [result, setResult]         = useState(null);
+      const [error, setError]           = useState(null);
+      const MIN = 3;
+
+      const toggle    = (w) => setSelected(p => p.includes(w) ? p.filter(x => x !== w) : [...p, w]);
+      const selectAll = () => setSelected(saved.map(w => w.word));
+      const clearAll  = () => setSelected([]);
+
+      const generate = async () => {
+        const words = saved.filter(w => selected.includes(w.word));
+        if (words.length < MIN) return;
+        setDailyState('loading'); setError(null);
+        try {
+          const data = await fetchDaily(words, apiKey);
+          setResult(data); setDailyState('done');
+        } catch (e) { setError(e.message); setDailyState('idle'); }
+      };
+
+      if (dailyState === 'loading') return <DailyLoadingState />;
+
+      if (dailyState === 'done' && result) return (
+        <div className="tab-fade">
+          <div style={{padding:'14px 20px 10px', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+            <div style={{fontSize:14, fontWeight:600, color:'var(--text)'}}>Daily Sentences</div>
+            <button onClick={() => { setDailyState('idle'); setResult(null); }} style={{fontSize:12, color:'var(--accent2)', background:'none', border:'none', cursor:'pointer', fontFamily:'var(--font-en)'}}>
+              ← Regenerate
+            </button>
+          </div>
+          {CONTEXTS.map(ctx => {
+            const items = result[ctx.key] || [];
+            if (!items.length) return null;
+            return (
+              <div key={ctx.key} className="context-card">
+                <div className="context-header">
+                  <span className="context-icon">{ctx.icon}</span>
+                  <span className="context-title">{ctx.label}</span>
+                </div>
+                {items.map((s, i) => <SentenceItem key={i} sentence={s.sentence} wordsUsed={s.words_used} />)}
+              </div>
+            );
+          })}
+        </div>
+      );
+
+      return (
+        <div className="section-wrap tab-fade">
+          <div className="section-title">Daily Usage</div>
+          <p style={{fontSize:13, color:'var(--text2)', lineHeight:1.7, marginBottom:16}}>
+            Saved words တွေကို တနေ့တာ real-life English sentences ထဲ သုံးပြမည်။
+            Think in English — Myanmar → English translate မလုပ်ဘဲ တိုက်ရိုက်တွေးနိုင်အောင်ပါ။
+          </p>
+
+          {saved.length === 0 ? (
+            <div className="empty-state">
+              <div className="empty-state-icon">📖</div>
+              <div>Words မရှိသေးပါ။<br />Dictionary မှ words Save လုပ်ပါ။</div>
+            </div>
+          ) : (
+            <>
+              <div className="toggle-controls">
+                <div className="section-label" style={{margin:0}}>Words ရွေးပါ ({selected.length}/{saved.length})</div>
+                <div style={{display:'flex', gap:10}}>
+                  <button className="text-btn" onClick={selectAll}>All</button>
+                  <button className="text-btn" onClick={clearAll}>None</button>
+                </div>
+              </div>
+              <div className="word-toggles">
+                {saved.map(w => (
+                  <button key={w.word} className={`word-toggle${selected.includes(w.word) ? ' on' : ''}`} onClick={() => toggle(w.word)}>
+                    {w.word}
+                  </button>
+                ))}
+              </div>
+              {error && <div className="error-banner"><span>{error}</span></div>}
+              <button className="btn-primary" onClick={generate} disabled={selected.length < MIN} style={{marginTop:4}}>
+                {selected.length >= MIN ? '✨ Daily Sentences ထုတ်မည်' : `Words ${MIN} ခုအနည်းဆုံးရွေးပါ`}
+              </button>
+            </>
+          )}
+        </div>
+      );
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // PROFILE TAB — Phase 3: Stats dashboard, freq badges
+    // ─────────────────────────────────────────────────────────
+    function ProfileTab({ apiKey, saved, onEditKey, onRemoveWord, user, syncing, onLogin, onLogout }) {
+      const [quizHist, setQuizHist] = useState(() => lsGet(KEYS.QUIZ_HIST, []));
+      const freq = lsGet(KEYS.FREQ, {});
+
+      const totalSearches = Object.values(freq).reduce((a, b) => a + b, 0);
+      const avgScore      = quizHist.length > 0
+        ? Math.round(quizHist.reduce((a, h) => a + (h.score / h.total) * 100, 0) / quizHist.length)
+        : null;
+
+      const masked = apiKey
+        ? apiKey.slice(0, 8) + '••••••••' + apiKey.slice(-4)
+        : 'မထည့်ရသေးပါ';
+
+      const clearQuizHist = () => { lsSet(KEYS.QUIZ_HIST, []); setQuizHist([]); };
+
+      return (
+        <div className="section-wrap tab-fade">
+          <div className="section-title">Profile</div>
+
+          {/* Cloud Sync Card */}
+          <div className="panel-card" style={{marginBottom:16}}>
+            {user ? (
+              <div style={{display:'flex',alignItems:'center',gap:12}}>
+                <img src={user.photoURL} alt="" style={{width:40,height:40,borderRadius:'50%',flexShrink:0}} />
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontWeight:600,fontSize:14,color:'var(--text)'}}>{user.displayName}</div>
+                  <div style={{fontSize:12,color:'var(--text3)'}}>{syncing ? '⟳ Cloud sync လုပ်နေသည်…' : '✓ Cloud sync ဖြစ်ပြီးပြီ'}</div>
+                </div>
+                <button className="icon-btn danger" onClick={onLogout}>Logout</button>
+              </div>
+            ) : (
+              <div style={{textAlign:'center',padding:'8px 0'}}>
+                <div style={{fontSize:13,color:'var(--text2)',marginBottom:12}}>Google account နဲ့ login လုပ်ပြီး<br/>devices အားလုံးမှာ sync ဖြစ်စေပါ</div>
+                <button
+                  onClick={onLogin}
+                  style={{display:'inline-flex',alignItems:'center',gap:8,background:'#fff',color:'#1a1a1a',border:'none',borderRadius:8,padding:'10px 20px',fontWeight:600,fontSize:14,cursor:'pointer'}}
+                >
+                  <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.08 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.29-8.16 2.29-6.26 0-11.57-3.59-13.43-8.83l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+                  Sign in with Google
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Phase 3: Stats grid */}
+          <div className="stats-grid">
+            <div className="stat-chip">
+              <div className="stat-num">{saved.length}</div>
+              <div className="stat-label">Words</div>
+            </div>
+            <div className="stat-chip">
+              <div className="stat-num">{totalSearches}</div>
+              <div className="stat-label">Searches</div>
+            </div>
+            <div className="stat-chip">
+              <div className="stat-num">{avgScore !== null ? `${avgScore}%` : '—'}</div>
+              <div className="stat-label">Quiz Avg</div>
+            </div>
+          </div>
+
+          {/* API Key */}
+          <div className="panel-card">
+            <div className="panel-row">
+              <div>
+                <div className="panel-row-label">Groq API Key</div>
+                <div className="panel-row-value">{masked}</div>
+              </div>
+              <button className="icon-btn" onClick={onEditKey}>Edit</button>
+            </div>
+          </div>
+
+          {/* Saved Words — Phase 3: show freq badge */}
+          <div className="section-label" style={{marginBottom:9}}>
+            Saved Words ({saved.length})
+          </div>
+          {saved.length === 0 ? (
+            <div className="empty-state" style={{padding:'20px 0'}}>
+              <div className="empty-state-icon">🔖</div>
+              <div>Saved words မရှိသေးပါ</div>
+            </div>
+          ) : (
+            <div className="panel-card">
+              {saved.map(w => (
+                <div key={w.word} className="saved-word-item">
+                  <div style={{flex:1, minWidth:0}}>
+                    <div style={{display:'flex', alignItems:'center', gap:7}}>
+                      <div className="saved-word-name">{w.word}</div>
+                      {freq[w.word] > 0 && (
+                        <span className="freq-badge">{freq[w.word]}×</span>
+                      )}
+                    </div>
+                    <div className="saved-word-meaning">
+                      {(w.myanmar_meaning || '').slice(0, 48)}{(w.myanmar_meaning || '').length > 48 ? '…' : ''}
+                    </div>
+                  </div>
+                  <button className="icon-btn danger" onClick={() => onRemoveWord(w.word)}>Remove</button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Quiz History */}
+          {quizHist.length > 0 && (
+            <>
+              <div className="section-label" style={{marginBottom:9, marginTop:4, display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                <span>Quiz History ({quizHist.length})</span>
+                <button className="text-btn" onClick={clearQuizHist}>Clear</button>
+              </div>
+              <div className="panel-card">
+                {quizHist.map((h, i) => {
+                  const pct   = Math.round((h.score / h.total) * 100);
+                  const grade = pct >= 80 ? 'good' : pct >= 60 ? 'ok' : 'bad';
+                  return (
+                    <div key={i} className="qhist-item">
+                      <div>
+                        <div className={`qhist-score ${grade}`}>{h.score}/{h.total}</div>
+                        <div className="qhist-date">
+                          {new Date(h.date).toLocaleString('en-US', {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'})}
+                        </div>
+                      </div>
+                      <div style={{fontSize:20}}>{pct >= 80 ? '🎉' : pct >= 60 ? '👍' : '💪'}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
+
+          <p style={{fontSize:11, color:'var(--text3)', textAlign:'center', marginTop:8}}>
+            Mingalar v1.0 · Phase 3 Complete
+          </p>
+        </div>
+      );
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // MAIN APP
+    // ─────────────────────────────────────────────────────────
+    function App() {
+      const [activeTab, setActiveTab]       = useState('dictionary');
+      const [apiKey, setApiKey]             = useState(() => lsGet(KEYS.API, ''));
+      const [showKeyModal, setShowKeyModal] = useState(false);
+      const [saved, setSaved]               = useState(() => lsGet(KEYS.SAVED, []));
+      const [user, setUser]                 = useState(null);
+      const [syncing, setSyncing]           = useState(false);
+      const [authReady, setAuthReady]       = useState(false);
+
+      // Auth state listener
+      useEffect(() => {
+        return fbAuth.onAuthStateChanged(async (u) => {
+          setUser(u);
+          setAuthReady(true);
+          if (u) {
+            setSyncing(true);
+            try {
+              const cloudWords = await cloudLoad(u.uid);
+              if (cloudWords.length > 0) {
+                setSaved(cloudWords);
+                lsSet(KEYS.SAVED, cloudWords);
+              } else {
+                // First login — upload local words to cloud
+                const local = lsGet(KEYS.SAVED, []);
+                if (local.length > 0) await cloudSave(u.uid, local);
+              }
+            } catch(e) { console.warn('Cloud load failed', e); }
+            finally { setSyncing(false); }
+          }
+        });
+      }, []);
+
+      const needsKey = !apiKey && activeTab === 'dictionary';
+
+      const handleSaveKey = (key) => { lsSet(KEYS.API, key); setApiKey(key); setShowKeyModal(false); };
+
+      const handleSaveToggle = (result) => {
+        setSaved(prev => {
+          const exists = prev.some(s => s.word?.toLowerCase() === result.word?.toLowerCase());
+          const next   = exists
+            ? prev.filter(s => s.word?.toLowerCase() !== result.word?.toLowerCase())
+            : [result, ...prev];
+          lsSet(KEYS.SAVED, next);
+          if (user) cloudSave(user.uid, next).catch(() => {});
+          return next;
+        });
+      };
+
+      const handleRemoveWord = (word) => {
+        setSaved(prev => {
+          const next = prev.filter(s => s.word?.toLowerCase() !== word.toLowerCase());
+          lsSet(KEYS.SAVED, next);
+          if (user) cloudSave(user.uid, next).catch(() => {});
+          return next;
+        });
+      };
+
+      const handleGoogleLogin = () => {
+        const provider = new firebase.auth.GoogleAuthProvider();
+        fbAuth.signInWithPopup(provider).catch(e => alert('Login failed: ' + e.message));
+      };
+      const handleLogout = () => fbAuth.signOut();
+
+      const tabs = [
+        { id: 'dictionary', icon: '📚', label: 'Dictionary' },
+        { id: 'quiz',       icon: '🧠', label: 'Quiz' },
+        { id: 'daily',      icon: '📖', label: 'Daily' },
+        { id: 'profile',    icon: '👤', label: 'Profile' },
+      ];
+
+      return (
+        <>
+          {(needsKey || showKeyModal) && <ApiKeyModal onSave={handleSaveKey} />}
+
+          <div className="app-header">
+            <div className="app-brand">
+              <span className="app-title">Mingalar</span>
+              <span className="app-subtitle">EN · MY Dictionary</span>
+            </div>
+            <div style={{display:'flex',alignItems:'center',gap:8}}>
+              {syncing && <span style={{fontSize:11,color:'var(--text3)'}}>⟳ syncing…</span>}
+              {user && (
+                <img src={user.photoURL} alt="" style={{width:28,height:28,borderRadius:'50%',border:'2px solid var(--indigo)'}} />
+              )}
+            </div>
+          </div>
+
+          {/* Phase 3: Offline banner (shows automatically when offline) */}
+          <OfflineBanner />
+
+          <div className="content-area">
+            {activeTab === 'dictionary' && apiKey && (
+              <DictionaryTab apiKey={apiKey} saved={saved} onSaveToggle={handleSaveToggle} />
+            )}
+            {activeTab === 'quiz' && (
+              <QuizTab apiKey={apiKey} saved={saved} />
+            )}
+            {activeTab === 'daily' && (
+              <DailyTab apiKey={apiKey} saved={saved} />
+            )}
+            {activeTab === 'profile' && (
+              <ProfileTab
+                apiKey={apiKey} saved={saved}
+                onEditKey={() => setShowKeyModal(true)}
+                onRemoveWord={handleRemoveWord}
+                user={user}
+                syncing={syncing}
+                onLogin={handleGoogleLogin}
+                onLogout={handleLogout}
+              />
+            )}
+          </div>
+
+          <nav className="bottom-nav">
+            {tabs.map(tab => (
+              <button
+                key={tab.id}
+                className={`nav-item${activeTab === tab.id ? ' active' : ''}`}
+                onClick={() => setActiveTab(tab.id)}
+              >
+                <span className="nav-icon">{tab.icon}</span>
+                <span>{tab.label}</span>
+              </button>
+            ))}
+          </nav>
+        </>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
