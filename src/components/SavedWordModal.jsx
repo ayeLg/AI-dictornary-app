@@ -1,9 +1,51 @@
+import { useRef, useState } from 'react';
+
 export default function SavedWordModal({ word, onClose, onRemove }) {
   const f = word.word_forms || {};
+  const sheetRef = useRef(null);
+  const startY = useRef(0);
+  const [dragY, setDragY] = useState(0);
+  const isDragging = useRef(false);
+
+  const onTouchStart = e => {
+    startY.current = e.touches[0].clientY;
+    isDragging.current = true;
+  };
+
+  const onTouchMove = e => {
+    if (!isDragging.current) return;
+    const dy = e.touches[0].clientY - startY.current;
+    if (dy > 0) setDragY(dy); // only allow dragging down
+  };
+
+  const onTouchEnd = () => {
+    isDragging.current = false;
+    if (dragY > 100) {
+      onClose(); // swipe down >100px → close
+    } else {
+      setDragY(0); // snap back
+    }
+  };
+
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-sheet" style={{maxHeight:'85vh', overflowY:'auto'}} onClick={e => e.stopPropagation()}>
-        <div className="modal-handle" />
+      <div
+        ref={sheetRef}
+        className="modal-sheet"
+        style={{
+          maxHeight: '85vh',
+          overflowY: dragY > 0 ? 'hidden' : 'auto',
+          transform: `translateY(${dragY}px)`,
+          transition: dragY === 0 ? 'transform 0.3s ease' : 'none',
+        }}
+        onClick={e => e.stopPropagation()}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+      >
+        {/* Drag handle */}
+        <div className="modal-handle" style={{cursor:'grab'}} />
+
         <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:14}}>
           <div>
             <div style={{fontSize:26, fontWeight:700, color:'var(--text)', fontFamily:'var(--font-title)', letterSpacing:'-0.5px'}}>{word.word}</div>
