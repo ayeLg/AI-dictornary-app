@@ -68,13 +68,24 @@ export async function fetchQuiz(saved, apiKey, freqs = {}) {
     ? `\nPrioritize these words: ${[...saved].sort((a,b)=>(freqs[b.word]||0)-(freqs[a.word]||0)).slice(0,5).map(w=>w.word).join(', ')}`
     : '';
 
-  const raw = await groqAI(apiKey, `English-Myanmar quiz. Words: ${JSON.stringify(wordList)}
+  const raw = await groqAI(apiKey, `English-Myanmar vocabulary quiz. Words: ${JSON.stringify(wordList)}
 ${freqNote}
 
-Make ${numQ} MCQ questions. Alternate Type A (EN→MY) and Type B (MY→EN).
-IMPORTANT: Keep ALL options very short (max 5 words each). No long sentences in options.
-Return ONLY a compact JSON array:
-[{"type":"A","word":"english_word","question_text":"'word' ၏ မြန်မာအဓိပ္ပာယ်?","correct":"မြန်မာ","options":["မြန်မာ1","မြန်မာ2","မြန်မာ3","မြန်မာ4"],"explanation":"short English note"}]`, 0.2, 3000);
+Generate ${numQ} MCQ questions. Alternate Type A and Type B.
+
+Type A (English → Myanmar): question_text = "What is the Myanmar meaning of '[english_word]'?"
+Type B (Myanmar → English): question_text = "What is the English word for '[actual_myanmar_meaning_here]'?"
+
+Rules:
+- Type B: MUST put the actual Myanmar meaning inside the question_text, not a placeholder
+- All options: max 5 words, no long sentences
+- Shuffle correct answer randomly among 4 options
+
+Return ONLY a JSON array, no markdown:
+[
+  {"type":"A","word":"drench","question_text":"What is the Myanmar meaning of 'drench'?","correct":"စိမ်ရည်ချပြီး ရေစိုအောင်","options":["စိမ်ရည်ချပြီး ရေစိုအောင်","ပျော်ရွှင်သော","မြန်မြန်ဆန်ဆန်","ကြောက်ရွံ့သော"],"explanation":"Drench means to make something completely wet."},
+  {"type":"B","word":"timid","question_text":"What is the English word for 'ရဲရင့်မှုမရှိသော၊ ကြောက်တတ်သော'?","correct":"timid","options":["timid","brave","strong","reckless"],"explanation":"Timid means lacking courage or confidence."}
+]`, 0.2, 3000);
 
   return JSON.parse(raw);
 }
