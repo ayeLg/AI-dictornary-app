@@ -26,7 +26,14 @@ export async function groqAI(apiKey, prompt, temp = 0.1, maxTokens = 1024) {
   }
   const data = await res.json();
   const text = (data.choices?.[0]?.message?.content || '').trim();
-  return text.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
+  // Strip markdown fences
+  let clean = text.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
+  // Extract first JSON object {} or array [] — ignore any text before/after
+  const arrMatch = clean.match(/(\[[\s\S]*\])/);
+  const objMatch = clean.match(/(\{[\s\S]*\})/);
+  if (arrMatch) return arrMatch[1];
+  if (objMatch) return objMatch[1];
+  return clean;
 }
 
 export async function fetchWord(word, apiKey) {
