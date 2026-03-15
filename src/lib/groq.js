@@ -5,7 +5,7 @@ export const CONTEXTS = [
   { key: 'evening', icon: '🌙', label: 'Evening' },
 ];
 
-export async function groqAI(apiKey, prompt, temp = 0.1) {
+export async function groqAI(apiKey, prompt, temp = 0.1, maxTokens = 1024) {
   const url = `https://api.groq.com/openai/v1/chat/completions`;
   const res = await fetch(url, {
     method: 'POST',
@@ -17,7 +17,7 @@ export async function groqAI(apiKey, prompt, temp = 0.1) {
       model: 'llama-3.3-70b-versatile',
       messages: [{ role: 'user', content: prompt }],
       temperature: temp,
-      max_tokens: 1024,
+      max_tokens: maxTokens,
     }),
   });
   if (!res.ok) {
@@ -57,39 +57,28 @@ Return raw JSON only.`);
 }
 
 export async function fetchQuiz(saved, apiKey, freqs = {}) {
-  const numQ = Math.min(10, saved.length * 2);
+  const numQ = Math.min(6, saved.length);  // max 6 questions to avoid token overflow
   // Sort by frequency (most searched first)
   const wordList = [...saved]
     .sort((a, b) => (freqs[b.word] || 0) - (freqs[a.word] || 0))
-    .map(w => ({ word: w.word, myanmar_meaning: w.myanmar_meaning, freq: freqs[w.word] || 0 }));
+    .slice(0, 12)  // limit word list to 12 to keep prompt short
+    .map(w => ({ word: w.word, myanmar_meaning: w.myanmar_meaning }));
 
-  const freqNote = wordList.some(w => w.freq > 0)
-    ? `\nUser search frequency (higher = more important to test): ${wordList.map(w => `${w.word}(${w.freq}x)`).join(', ')}\nGenerate MORE questions about high-frequency words.`
+  const freqNote = Object.keys(freqs).length > 0
+    ? `\nPrioritize these words: ${[...saved].sort((a,b)=>(freqs[b.word]||0)-(freqs[a.word]||0)).slice(0,5).map(w=>w.word).join(', ')}`
     : '';
 
-  const raw = await groqAI(apiKey, `Quiz generator for English-Myanmar language learning.
+  const raw = await groqAI(apiKey, `English-Myanmar quiz generator.
 
-Word list:
-${JSON.stringify(wordList.map(w => ({ word: w.word, myanmar_meaning: w.myanmar_meaning })))}
+Words: ${JSON.stringify(wordList)}
 ${freqNote}
 
-Generate exactly ${numQ} MCQ questions. Mix Type A (English→Myanmar) and Type B (Myanmar→English) evenly.
+Generate exactly ${numQ} MCQ questions. Mix Type A (English→Myanmar) and Type B (Myanmar→English).
+Each question: 4 short options, shuffle correct answer position, 1-sentence English explanation.
 
-Rules:
-- Each question: exactly 4 options
-- Wrong choices: from other words in the list or plausible alternatives
-- Shuffle correct answer position randomly
-- 1-sentence explanation per question
+Return ONLY a JSON array, no markdown:
+[{"type":"A","word":"english_word","question_text":"...","correct":"...","options":["...","...","...","..."],"explanation":"..."}]`, 0.3, 2048);
 
-Return ONLY a raw JSON array (no markdown):
-[{
-  "type": "A",
-  "word": "english_word",
-  "question_text": "What is the Myanmar meaning of 'word'?",
-  "correct": "correct answer text",
-  "options": ["opt1","opt2","opt3","opt4"],
-  "explanation": "Brief explanation."
-}]`, 0.3);
   return JSON.parse(raw);
 }
 
