@@ -1,0 +1,161 @@
+import { useState } from 'react';
+import { KEYS, lsGet, lsSet } from '../lib/storage';
+import SavedWordModal from './SavedWordModal';
+
+export default function ProfileTab({ apiKey, saved, onEditKey, onRemoveWord, onSwitchTab, user, syncing, onLogin, onLogout }) {
+  const [quizHist, setQuizHist] = useState(() => lsGet(KEYS.QUIZ_HIST, []));
+  const [searchHist, setSearchHist] = useState(() => lsGet(KEYS.HISTORY, []));
+  const [selectedWord, setSelectedWord] = useState(null);
+  const freq = lsGet(KEYS.FREQ, {});
+
+  const totalSearches = Object.values(freq).reduce((a, b) => a + b, 0);
+  const avgScore      = quizHist.length > 0
+    ? Math.round(quizHist.reduce((a, h) => a + (h.score / h.total) * 100, 0) / quizHist.length)
+    : null;
+
+  const masked = apiKey
+    ? apiKey.slice(0, 8) + '••••••••' + apiKey.slice(-4)
+    : 'မထည့်ရသေးပါ';
+
+  const clearQuizHist = () => { lsSet(KEYS.QUIZ_HIST, []); setQuizHist([]); };
+
+  return (
+    <div className="section-wrap tab-fade">
+      <div className="section-title">Profile</div>
+
+      {/* Cloud Sync Card */}
+      <div className="panel-card" style={{marginBottom:16}}>
+        {user ? (
+          <div style={{display:'flex',alignItems:'center',gap:12}}>
+            <img src={user.photoURL} alt="" style={{width:40,height:40,borderRadius:'50%',flexShrink:0}} />
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontWeight:600,fontSize:14,color:'var(--text)'}}>{user.displayName}</div>
+              <div style={{fontSize:12,color:'var(--text3)'}}>{syncing ? '⟳ Cloud sync လုပ်နေသည်…' : '✓ Cloud sync ဖြစ်ပြီးပြီ'}</div>
+            </div>
+            <button className="icon-btn danger" onClick={onLogout}>Logout</button>
+          </div>
+        ) : (
+          <div style={{textAlign:'center',padding:'8px 0'}}>
+            <div style={{fontSize:13,color:'var(--text2)',marginBottom:12}}>Google account နဲ့ login လုပ်ပြီး<br/>devices အားလုံးမှာ sync ဖြစ်စေပါ</div>
+            <button
+              onClick={onLogin}
+              style={{display:'inline-flex',alignItems:'center',gap:8,background:'#fff',color:'#1a1a1a',border:'none',borderRadius:8,padding:'10px 20px',fontWeight:600,fontSize:14,cursor:'pointer'}}
+            >
+              <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.08 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.29-8.16 2.29-6.26 0-11.57-3.59-13.43-8.83l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+              Sign in with Google
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Phase 3: Stats grid */}
+      <div className="stats-grid">
+        <div className="stat-chip">
+          <div className="stat-num">{saved.length}</div>
+          <div className="stat-label">Words</div>
+        </div>
+        <div className="stat-chip">
+          <div className="stat-num">{totalSearches}</div>
+          <div className="stat-label">Searches</div>
+        </div>
+        <div className="stat-chip">
+          <div className="stat-num">{avgScore !== null ? `${avgScore}%` : '—'}</div>
+          <div className="stat-label">Quiz Avg</div>
+        </div>
+      </div>
+
+      {/* API Key */}
+      <div className="panel-card">
+        <div className="panel-row">
+          <div>
+            <div className="panel-row-label">Groq API Key</div>
+            <div className="panel-row-value">{masked}</div>
+          </div>
+          <button className="icon-btn" onClick={onEditKey}>Edit</button>
+        </div>
+      </div>
+
+      {/* Saved Words — Phase 3: show freq badge */}
+      <div className="section-label" style={{marginBottom:9}}>
+        Saved Words ({saved.length})
+      </div>
+      {selectedWord && (
+        <SavedWordModal word={selectedWord} onClose={() => setSelectedWord(null)} onRemove={onRemoveWord} />
+      )}
+      {saved.length === 0 ? (
+        <div className="empty-state" style={{padding:'20px 0'}}>
+          <div className="empty-state-icon">🔖</div>
+          <div>Saved words မရှိသေးပါ</div>
+        </div>
+      ) : (
+        <div className="panel-card">
+          {saved.map(w => (
+            <div key={w.word} className="saved-word-item" style={{cursor:'pointer'}} onClick={() => setSelectedWord(w)}>
+              <div style={{flex:1, minWidth:0}}>
+                <div style={{display:'flex', alignItems:'center', gap:7}}>
+                  <div className="saved-word-name">{w.word}</div>
+                  {freq[w.word] > 0 && (
+                    <span className="freq-badge">{freq[w.word]}×</span>
+                  )}
+                </div>
+                <div className="saved-word-meaning">
+                  {(w.myanmar_meaning || '').slice(0, 48)}{(w.myanmar_meaning || '').length > 48 ? '…' : ''}
+                </div>
+              </div>
+              <button className="icon-btn danger" onClick={e => { e.stopPropagation(); onRemoveWord(w.word); }}>Remove</button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Search History */}
+      {searchHist.length > 0 && (
+        <>
+          <div className="section-label" style={{marginBottom:9, marginTop:4, display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+            <span>Search History ({searchHist.length})</span>
+            <button className="text-btn" onClick={() => { lsSet(KEYS.HISTORY, []); setSearchHist([]); }}>Clear</button>
+          </div>
+          <div className="panel-card" style={{display:'flex', flexWrap:'wrap', gap:8, padding:'12px 14px'}}>
+            {searchHist.map((w, i) => (
+              <button key={i} onClick={() => onSwitchTab && onSwitchTab(w)}
+                style={{background:'var(--surface2)', border:'1px solid var(--border2)', borderRadius:20, padding:'5px 13px', fontSize:13, color:'var(--text2)', cursor:'pointer', fontFamily:'var(--font-en)'}}>
+                {w}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* Quiz History */}
+      {quizHist.length > 0 && (
+        <>
+          <div className="section-label" style={{marginBottom:9, marginTop:4, display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+            <span>Quiz History ({quizHist.length})</span>
+            <button className="text-btn" onClick={clearQuizHist}>Clear</button>
+          </div>
+          <div className="panel-card">
+            {quizHist.map((h, i) => {
+              const pct   = Math.round((h.score / h.total) * 100);
+              const grade = pct >= 80 ? 'good' : pct >= 60 ? 'ok' : 'bad';
+              return (
+                <div key={i} className="qhist-item">
+                  <div>
+                    <div className={`qhist-score ${grade}`}>{h.score}/{h.total}</div>
+                    <div className="qhist-date">
+                      {new Date(h.date).toLocaleString('en-US', {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'})}
+                    </div>
+                  </div>
+                  <div style={{fontSize:20}}>{pct >= 80 ? '🎉' : pct >= 60 ? '👍' : '💪'}</div>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+
+      <p style={{fontSize:11, color:'var(--text3)', textAlign:'center', marginTop:8}}>
+        Mingalar v1.0 · Phase 3 Complete
+      </p>
+    </div>
+  );
+}
