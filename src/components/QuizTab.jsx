@@ -6,7 +6,7 @@ function isMyanmarText(t) { return /[\u1000-\u109F\uAA60-\uAA7F]/.test(String(t)
 
 function QuizIdle({ saved, freqs, onStart, minWords, error }) {
   const canStart  = saved.length >= minWords;
-  const numQ      = Math.min(10, saved.length * 2);
+  const numQ      = Math.min(6, saved.length);
   const hasFreqs  = Object.keys(freqs).length > 0;
   const topWord   = hasFreqs
     ? Object.entries(freqs).sort((a,b) => b[1]-a[1])[0]

@@ -68,16 +68,13 @@ export async function fetchQuiz(saved, apiKey, freqs = {}) {
     ? `\nPrioritize these words: ${[...saved].sort((a,b)=>(freqs[b.word]||0)-(freqs[a.word]||0)).slice(0,5).map(w=>w.word).join(', ')}`
     : '';
 
-  const raw = await groqAI(apiKey, `English-Myanmar quiz generator.
-
-Words: ${JSON.stringify(wordList)}
+  const raw = await groqAI(apiKey, `English-Myanmar quiz. Words: ${JSON.stringify(wordList)}
 ${freqNote}
 
-Generate exactly ${numQ} MCQ questions. Mix Type A (English→Myanmar) and Type B (Myanmar→English).
-Each question: 4 short options, shuffle correct answer position, 1-sentence English explanation.
-
-Return ONLY a JSON array, no markdown:
-[{"type":"A","word":"english_word","question_text":"...","correct":"...","options":["...","...","...","..."],"explanation":"..."}]`, 0.3, 2048);
+Make ${numQ} MCQ questions. Alternate Type A (EN→MY) and Type B (MY→EN).
+IMPORTANT: Keep ALL options very short (max 5 words each). No long sentences in options.
+Return ONLY a compact JSON array:
+[{"type":"A","word":"english_word","question_text":"'word' ၏ မြန်မာအဓိပ္ပာယ်?","correct":"မြန်မာ","options":["မြန်မာ1","မြန်မာ2","မြန်မာ3","မြန်မာ4"],"explanation":"short English note"}]`, 0.2, 3000);
 
   return JSON.parse(raw);
 }
