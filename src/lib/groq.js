@@ -5,7 +5,7 @@ export const CONTEXTS = [
   { key: 'evening', icon: '🌙', label: 'Evening' },
 ];
 
-export async function groqAI(apiKey, prompt, temp = 0.1, maxTokens = 1024) {
+export async function groqAI(apiKey, prompt, temp = 0.1, maxTokens = 2048) {
   const url = `https://api.groq.com/openai/v1/chat/completions`;
   const res = await fetch(url, {
     method: 'POST',
@@ -18,6 +18,7 @@ export async function groqAI(apiKey, prompt, temp = 0.1, maxTokens = 1024) {
       messages: [{ role: 'user', content: prompt }],
       temperature: temp,
       max_tokens: maxTokens,
+      response_format: { type: 'json_object' },
     }),
   });
   if (!res.ok) {
@@ -25,15 +26,7 @@ export async function groqAI(apiKey, prompt, temp = 0.1, maxTokens = 1024) {
     throw new Error(e.error?.message || `API Error ${res.status}`);
   }
   const data = await res.json();
-  const text = (data.choices?.[0]?.message?.content || '').trim();
-  // Strip markdown fences
-  let clean = text.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
-  // Extract first JSON object {} or array [] — ignore any text before/after
-  const arrMatch = clean.match(/(\[[\s\S]*\])/);
-  const objMatch = clean.match(/(\{[\s\S]*\})/);
-  if (arrMatch) return arrMatch[1];
-  if (objMatch) return objMatch[1];
-  return clean;
+  return (data.choices?.[0]?.message?.content || '').trim();
 }
 
 export async function fetchWord(word, apiKey) {
@@ -84,17 +77,17 @@ Type A (English → Myanmar): question_text = "What is the Myanmar meaning of '[
 Type B (Myanmar → English): question_text = "What is the English word for '[actual_myanmar_meaning_here]'?"
 
 Rules:
-- Type B: MUST put the actual Myanmar meaning inside the question_text, not a placeholder
-- All options: max 5 words, no long sentences
-- Shuffle correct answer randomly among 4 options
+- Type B: MUST put the actual Myanmar meaning text inside the question_text
+- All options: max 5 words each
+- Shuffle correct answer position randomly among 4 options
 
-Return ONLY a JSON array, no markdown:
-[
-  {"type":"A","word":"drench","question_text":"What is the Myanmar meaning of 'drench'?","correct":"စိမ်ရည်ချပြီး ရေစိုအောင်","options":["စိမ်ရည်ချပြီး ရေစိုအောင်","ပျော်ရွှင်သော","မြန်မြန်ဆန်ဆန်","ကြောက်ရွံ့သော"],"explanation":"Drench means to make something completely wet."},
-  {"type":"B","word":"timid","question_text":"What is the English word for 'ရဲရင့်မှုမရှိသော၊ ကြောက်တတ်သော'?","correct":"timid","options":["timid","brave","strong","reckless"],"explanation":"Timid means lacking courage or confidence."}
-]`, 0.2, 3000);
+Return JSON object with a "questions" array:
+{"questions":[
+  {"type":"A","word":"drench","question_text":"What is the Myanmar meaning of 'drench'?","correct":"ရေစိုအောင်","options":["ရေစိုအောင်","ပျော်ရွှင်","မြန်မြန်","ကြောက်"],"explanation":"Drench means to soak completely."},
+  {"type":"B","word":"timid","question_text":"What is the English word for 'ရဲရင့်မှုမရှိသော'?","correct":"timid","options":["timid","brave","strong","reckless"],"explanation":"Timid means lacking courage."}
+]}`, 0.2, 3000);
 
-  return JSON.parse(raw);
+  return JSON.parse(raw).questions;
 }
 
 export async function fetchDaily(words, apiKey) {
