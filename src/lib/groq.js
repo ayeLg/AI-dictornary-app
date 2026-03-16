@@ -1,3 +1,25 @@
+// Robustly extract and parse the first balanced JSON object or array from text
+function safeParseJSON(text) {
+  try { return JSON.parse(text.trim()); } catch {}
+  let start = -1, openChar, closeChar;
+  for (let i = 0; i < text.length; i++) {
+    if (text[i] === '{') { start = i; openChar = '{'; closeChar = '}'; break; }
+    if (text[i] === '[') { start = i; openChar = '['; closeChar = ']'; break; }
+  }
+  if (start === -1) throw new Error('No JSON found in response');
+  let depth = 0, inStr = false, esc = false;
+  for (let i = start; i < text.length; i++) {
+    const c = text[i];
+    if (esc) { esc = false; continue; }
+    if (c === '\\' && inStr) { esc = true; continue; }
+    if (c === '"') { inStr = !inStr; continue; }
+    if (inStr) continue;
+    if (c === openChar) depth++;
+    if (c === closeChar && --depth === 0) return JSON.parse(text.slice(start, i + 1));
+  }
+  throw new Error('Malformed JSON in response');
+}
+
 export const CONTEXTS = [
   { key: 'morning', icon: '🌅', label: 'Morning Routine' },
   { key: 'work',    icon: '💼', label: 'At Work / Study' },
@@ -53,7 +75,7 @@ export async function fetchWord(word, apiKey) {
 related_words: 4 semantically related words worth learning next (not synonyms/antonyms).
 If input has a typo, set corrected_word to the correct spelling. Otherwise null.
 Return raw JSON only.`);
-  return JSON.parse(raw);
+  return safeParseJSON(raw);
 }
 
 export async function fetchQuiz(saved, apiKey, freqs = {}) {
@@ -87,7 +109,7 @@ Return JSON object with a "questions" array:
   {"type":"B","word":"timid","question_text":"What is the English word for 'ရဲရင့်မှုမရှိသော'?","correct":"timid","options":["timid","brave","strong","reckless"],"explanation":"Timid means lacking courage."}
 ]}`, 0.2, 3000);
 
-  return JSON.parse(raw).questions;
+  return safeParseJSON(raw).questions;
 }
 
 export async function fetchDaily(words, apiKey) {
@@ -103,5 +125,5 @@ Return ONLY raw JSON:
   "social":  [{"sentence":"...","words_used":["word"]}],
   "evening": [{"sentence":"...","words_used":["word"]}]
 }`, 0.7);
-  return JSON.parse(raw);
+  return safeParseJSON(raw);
 }
