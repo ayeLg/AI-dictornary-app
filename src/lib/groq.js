@@ -112,6 +112,77 @@ Return JSON object with a "questions" array:
   return safeParseJSON(raw).questions;
 }
 
+export async function fetchExplain(text, apiKey) {
+  const raw = await groqAI(apiKey, `You are an English teacher for Myanmar students.
+
+Analyze this English text and help the student understand it:
+"${text}"
+
+Return ONLY raw JSON (no markdown):
+{
+  "summary_my": "မြန်မာဘာသာဖြင့် အနှစ်ချုပ်",
+  "key_concepts": ["concept1", "concept2"],
+  "difficult_words": [
+    {"word": "...", "meaning_en": "simple English meaning", "meaning_my": "မြန်မာဘာသာ"}
+  ]
+}
+
+Rules:
+- summary_my: 2-3 sentences in Myanmar explaining the main idea
+- key_concepts: 3-5 important concepts/terms from the text (English)
+- difficult_words: words that are intermediate/advanced level, max 8 words
+- meaning_my must be in Myanmar script`, 0.1, 2048);
+  return safeParseJSON(raw);
+}
+
+export async function fetchWritingFeedback(text, topic, apiKey) {
+  const raw = await groqAI(apiKey, `You are an English writing coach for Myanmar students.
+
+Topic: "${topic}"
+Student's writing: "${text}"
+
+Analyze and return ONLY raw JSON (no markdown):
+{
+  "score": 7,
+  "corrected": "full corrected version of the text",
+  "overall_feedback_my": "မြန်မာဘာသာဖြင့် အတိုချုပ် feedback (2-3 sentences)",
+  "errors": [
+    {"original": "wrong phrase", "corrected": "correct phrase", "explanation_my": "မြန်မာဘာသာဖြင့် ရှင်းပြချက်"}
+  ]
+}
+
+Rules:
+- score: 1-10 based on grammar, vocabulary, fluency
+- corrected: keep the student's ideas but fix grammar/vocabulary
+- errors: list top 3-5 most important mistakes only
+- explanation_my must be in Myanmar script
+- overall_feedback_my must be encouraging and in Myanmar script`, 0.1, 3000);
+  return safeParseJSON(raw);
+}
+
+export async function fetchTranslateMY(text, apiKey) {
+  const raw = await groqAI(apiKey, `You are a Myanmar-English translation assistant.
+
+Translate this Myanmar text to English and help the learner understand it:
+"${text}"
+
+Return ONLY raw JSON (no markdown):
+{
+  "translation_en": "Full natural English translation here",
+  "summary_my": "မြန်မာဘာသာဖြင့် အနှစ်ချုပ် (2-3 ကြောင်း)",
+  "key_vocab": [
+    {"word_my": "မြန်မာစကား", "word_en": "English word", "meaning_en": "brief English definition"}
+  ]
+}
+
+Rules:
+- translation_en: fluent, natural English (not word-for-word literal)
+- summary_my: brief Myanmar explanation of what the text means/context
+- key_vocab: 4-8 notable Myanmar words from the text with their English equivalents
+- key_vocab meaning_en: short, simple definition`, 0.1, 2048);
+  return safeParseJSON(raw);
+}
+
 export async function fetchDaily(words, apiKey) {
   const raw = await groqAI(apiKey, `I'm learning English. My vocabulary words: ${words.map(w => w.word).join(', ')}
 

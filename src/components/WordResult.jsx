@@ -1,9 +1,32 @@
+import { useState } from 'react';
+
 export default function WordResult({ result, isSaved, onSave, onChipClick }) {
   const f = result.word_forms || {};
+  const [speaking, setSpeaking] = useState(false);
+  const hasTTS = 'speechSynthesis' in window;
+
+  const speak = () => {
+    if (!hasTTS) return;
+    window.speechSynthesis.cancel();
+    const utt = new SpeechSynthesisUtterance(result.word);
+    utt.lang = 'en-US'; utt.rate = 0.9;
+    utt.onstart = () => setSpeaking(true);
+    utt.onend = () => setSpeaking(false);
+    utt.onerror = () => setSpeaking(false);
+    window.speechSynthesis.speak(utt);
+  };
+
   return (
     <div className="word-card">
       <div className="word-header">
-        <div className="word-title">{result.word}</div>
+        <div style={{display:'flex',alignItems:'center',gap:8}}>
+          <div className="word-title">{result.word}</div>
+          {hasTTS && (
+            <button className={`tts-btn${speaking ? ' speaking' : ''}`} onClick={speak} title="Pronounce">
+              🔊
+            </button>
+          )}
+        </div>
         <div className="word-meta">
           <div className="form-badges">
             {f.noun      && <span className="form-badge noun">n</span>}

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { KEYS, lsGet, lsSet } from './lib/storage';
 import {
   fbAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut,
@@ -10,18 +10,43 @@ import DictionaryTab from './components/DictionaryTab';
 import QuizTab from './components/QuizTab';
 import DailyTab from './components/DailyTab';
 import ProfileTab from './components/ProfileTab';
+import LearnTab, { getLearnDueCount } from './components/LearnTab';
+import PracticeTab from './components/PracticeTab';
+
+const TODAY = () => new Date().toISOString().slice(0, 10);
 
 export default function App() {
-  const [activeTab, setActiveTab]       = useState('dictionary');
-  const [apiKey, setApiKey]             = useState(() => lsGet(KEYS.API, ''));
-  const [showKeyModal, setShowKeyModal] = useState(false);
-  const [saved, setSaved]               = useState(() => lsGet(KEYS.SAVED, []));
-  const [user, setUser]                 = useState(null);
-  const [syncing, setSyncing]           = useState(false);
-  const [authReady, setAuthReady]       = useState(false);
-  const [pendingSearch, setPendingSearch] = useState(null);
+  const [activeTab, setActiveTab]           = useState('dictionary');
+  const [apiKey, setApiKey]                 = useState(() => lsGet(KEYS.API, ''));
+  const [showKeyModal, setShowKeyModal]     = useState(false);
+  const [saved, setSaved]                   = useState(() => lsGet(KEYS.SAVED, []));
+  const [srsData, setSrsData]               = useState(() => lsGet(KEYS.SRS, {}));
+  const [streak, setStreak]                 = useState(() => lsGet(KEYS.STREAK, { lastDate: '', count: 0 }));
+  const [user, setUser]                     = useState(null);
+  const [syncing, setSyncing]               = useState(false);
+  const [authReady, setAuthReady]           = useState(false);
+  const [pendingSearch, setPendingSearch]   = useState(null);
+  const syncTimerRef                        = useRef(null);
 
-  // Auth state listener — loads saved words + apiKey from cloud
+  const updateStreak = () => {
+    const today = TODAY();
+    setStreak(prev => {
+      if (prev.lastDate === today) return prev;
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yStr = yesterday.toISOString().slice(0, 10);
+      const next = prev.lastDate === yStr
+        ? { lastDate: today, count: prev.count + 1 }
+        : { lastDate: today, count: 1 };
+      lsSet(KEYS.STREAK, next);
+      return next;
+    });
+  };
+
+  // Update streak on mount
+  useEffect(() => { updateStreak(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auth state listener — loads saved words + apiKey + srsData from cloud
   useEffect(() => {
     return onAuthStateChanged(fbAuth, async (u) => {
       setUser(u);
@@ -29,8 +54,7 @@ export default function App() {
       if (u) {
         setSyncing(true);
         try {
-          const { saved: cloudWords, apiKey: cloudKey } = await cloudLoad(u.uid);
-          // Load saved words from cloud
+          const { saved: cloudWords, apiKey: cloudKey, srsData: cloudSrs } = await cloudLoad(u.uid);
           if (cloudWords.length > 0) {
             setSaved(cloudWords);
             lsSet(KEYS.SAVED, cloudWords);
@@ -38,25 +62,25 @@ export default function App() {
             const local = lsGet(KEYS.SAVED, []);
             if (local.length > 0) await cloudSave(u.uid, local, lsGet(KEYS.API, ''));
           }
-          // Load API key from cloud (syncs across devices!)
           if (cloudKey) {
             setApiKey(cloudKey);
             lsSet(KEYS.API, cloudKey);
           } else {
-            // First login — upload local key to cloud
             const localKey = lsGet(KEYS.API, '');
             if (localKey) await cloudSave(u.uid, cloudWords, localKey);
           }
-        } catch(e) { console.warn('Cloud load failed', e); }
+          if (cloudSrs && Object.keys(cloudSrs).length > 0) {
+            setSrsData(cloudSrs);
+            lsSet(KEYS.SRS, cloudSrs);
+          }
+        } catch (e) { console.warn('Cloud load failed', e); }
         finally { setSyncing(false); }
       }
     });
   }, []);
 
-  // Wait for auth to load before showing modal — prevents flashing on new device
   const needsKey = authReady && !user && !apiKey && activeTab === 'dictionary';
 
-  // Save key to both localStorage and cloud
   const handleSaveKey = (key) => {
     lsSet(KEYS.API, key);
     setApiKey(key);
@@ -85,15 +109,30 @@ export default function App() {
     });
   };
 
+  const handleSrsUpdate = (newSrs) => {
+    setSrsData(newSrs);
+    lsSet(KEYS.SRS, newSrs);
+    if (user) {
+      clearTimeout(syncTimerRef.current);
+      syncTimerRef.current = setTimeout(() => {
+        cloudSave(user.uid, lsGet(KEYS.SAVED, []), undefined, newSrs).catch(() => {});
+      }, 2000);
+    }
+  };
+
   const handleGoogleLogin = () => {
     const provider = new GoogleAuthProvider();
     signInWithPopup(fbAuth, provider).catch(e => alert('Login failed: ' + e.message));
   };
   const handleLogout = () => signOut(fbAuth);
 
+  const learnDue = getLearnDueCount(saved, srsData);
+
   const tabs = [
-    { id: 'dictionary', icon: '📚', label: 'Dictionary' },
+    { id: 'dictionary', icon: '📚', label: 'Dict' },
+    { id: 'learn',      icon: '🎴', label: 'Learn',    badge: learnDue },
     { id: 'quiz',       icon: '🧠', label: 'Quiz' },
+    { id: 'practice',   icon: '✏️',  label: 'Practice' },
     { id: 'daily',      icon: '📖', label: 'Daily' },
     { id: 'profile',    icon: '👤', label: 'Profile' },
   ];
@@ -107,23 +146,28 @@ export default function App() {
           <span className="app-title">Mingalar</span>
           <span className="app-subtitle">EN · MY Dictionary</span>
         </div>
-        <div style={{display:'flex',alignItems:'center',gap:8}}>
-          {syncing && <span style={{fontSize:11,color:'var(--text3)'}}>⟳ syncing…</span>}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {syncing && <span style={{ fontSize: 11, color: 'var(--text3)' }}>⟳ syncing…</span>}
           {user && (
-            <img src={user.photoURL} alt="" style={{width:28,height:28,borderRadius:'50%',border:'2px solid var(--indigo)'}} />
+            <img src={user.photoURL} alt="" style={{ width: 28, height: 28, borderRadius: '50%', border: '2px solid var(--accent)' }} />
           )}
         </div>
       </div>
 
-      {/* Phase 3: Offline banner (shows automatically when offline) */}
       <OfflineBanner />
 
       <div className="content-area">
         {activeTab === 'dictionary' && apiKey && (
           <DictionaryTab apiKey={apiKey} saved={saved} onSaveToggle={handleSaveToggle} pendingSearch={pendingSearch} onPendingClear={() => setPendingSearch(null)} />
         )}
+        {activeTab === 'learn' && (
+          <LearnTab saved={saved} srsData={srsData} onSrsUpdate={handleSrsUpdate} />
+        )}
         {activeTab === 'quiz' && (
           <QuizTab apiKey={apiKey} saved={saved} />
+        )}
+        {activeTab === 'practice' && (
+          <PracticeTab apiKey={apiKey} />
         )}
         {activeTab === 'daily' && (
           <DailyTab apiKey={apiKey} saved={saved} />
@@ -134,10 +178,9 @@ export default function App() {
             onEditKey={() => setShowKeyModal(true)}
             onRemoveWord={handleRemoveWord}
             onSwitchTab={(word) => { setPendingSearch(word); setActiveTab('dictionary'); }}
-            user={user}
-            syncing={syncing}
-            onLogin={handleGoogleLogin}
-            onLogout={handleLogout}
+            user={user} syncing={syncing}
+            onLogin={handleGoogleLogin} onLogout={handleLogout}
+            srsData={srsData} streak={streak}
           />
         )}
       </div>
@@ -149,8 +192,11 @@ export default function App() {
             className={`nav-item${activeTab === tab.id ? ' active' : ''}`}
             onClick={() => setActiveTab(tab.id)}
           >
-            <span className="nav-icon">{tab.icon}</span>
-            <span>{tab.label}</span>
+            <span className="nav-icon-wrap">
+              <span className="nav-icon">{tab.icon}</span>
+              {tab.badge > 0 && <span className="nav-badge">{tab.badge > 99 ? '99+' : tab.badge}</span>}
+            </span>
+            <span className="nav-label">{tab.label}</span>
           </button>
         ))}
       </nav>

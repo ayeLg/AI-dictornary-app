@@ -6,6 +6,19 @@ export default function SavedWordModal({ word, onClose, onRemove }) {
   const startY = useRef(0);
   const [dragY, setDragY] = useState(0);
   const isDragging = useRef(false);
+  const [speaking, setSpeaking] = useState(false);
+  const hasTTS = 'speechSynthesis' in window;
+
+  const speak = () => {
+    if (!hasTTS) return;
+    window.speechSynthesis.cancel();
+    const utt = new SpeechSynthesisUtterance(word.word);
+    utt.lang = 'en-US'; utt.rate = 0.9;
+    utt.onstart = () => setSpeaking(true);
+    utt.onend = () => setSpeaking(false);
+    utt.onerror = () => setSpeaking(false);
+    window.speechSynthesis.speak(utt);
+  };
 
   const onTouchStart = e => {
     startY.current = e.touches[0].clientY;
@@ -48,7 +61,10 @@ export default function SavedWordModal({ word, onClose, onRemove }) {
 
         <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:14}}>
           <div>
+            <div style={{display:'flex',alignItems:'center',gap:8}}>
             <div style={{fontSize:26, fontWeight:700, color:'var(--text)', fontFamily:'var(--font-title)', letterSpacing:'-0.5px'}}>{word.word}</div>
+            {hasTTS && <button className={`tts-btn${speaking ? ' speaking' : ''}`} onClick={speak} title="Pronounce">🔊</button>}
+          </div>
             <div style={{display:'flex', gap:5, marginTop:4}}>
               {f.noun      && <span className="form-badge noun">n</span>}
               {f.verb      && <span className="form-badge verb">v</span>}

@@ -5,6 +5,8 @@ export const KEYS = {
   QUIZ_HIST: 'ming_quiz_hist',
   FREQ:      'ming_freq',   // {word: searchCount}
   WOTD:      'ming_wotd',   // {word, wordObj, date}
+  SRS:       'ming_srs',    // {word: {interval, nextReview, ease, reps}}
+  STREAK:    'ming_streak', // {lastDate: 'YYYY-MM-DD', count: number}
 };
 
 export const lsGet = (k, fb = null) => {

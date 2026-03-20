@@ -17,14 +17,16 @@ export const fbDb   = getFirestore(app);
 
 export { GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut };
 
-export async function cloudSave(uid, saved, apiKey) {
+export async function cloudSave(uid, saved, apiKey, srsData) {
   const data = { saved };
-  if (apiKey) data.apiKey = apiKey;
+  if (apiKey !== undefined) data.apiKey = apiKey;
+  if (srsData !== undefined) data.srsData = srsData;
   await setDoc(doc(fbDb, 'users', uid), data, { merge: true });
 }
 
 export async function cloudLoad(uid) {
   const snap = await getDoc(doc(fbDb, 'users', uid));
-  if (!snap.exists()) return { saved: [], apiKey: null };
-  return { saved: snap.data().saved || [], apiKey: snap.data().apiKey || null };
+  if (!snap.exists()) return { saved: [], apiKey: null, srsData: {} };
+  const d = snap.data();
+  return { saved: d.saved || [], apiKey: d.apiKey || null, srsData: d.srsData || {} };
 }
