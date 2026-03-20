@@ -183,6 +183,68 @@ Rules:
   return safeParseJSON(raw);
 }
 
+export async function fetchConversation(topic, level, apiKey) {
+  const raw = await groqAI(apiKey, `You are an English conversation coach for Myanmar students.
+
+Generate a natural English conversation about: "${topic}"
+Level: ${level} (beginner/intermediate/advanced)
+
+Return ONLY raw JSON (no markdown):
+{
+  "situation": "Brief situation description in English",
+  "situation_my": "မြန်မာဘာသာဖြင့် အခြေအနေဖော်ပြချက်",
+  "dialogue": [
+    {"speaker": "A", "name": "Alex", "text": "English line here", "translation_my": "မြန်မာဘာသာပြန်"},
+    {"speaker": "B", "name": "Ben",  "text": "English line here", "translation_my": "မြန်မာဘာသာပြန်"}
+  ],
+  "useful_phrases": [
+    {"phrase": "English phrase", "meaning_my": "မြန်မာအဓိပ္ပာယ်", "usage": "when to use it in English"}
+  ]
+}
+
+Rules:
+- dialogue: 8-12 turns, natural and realistic, not textbook-stiff
+- level beginner: short sentences, common words; intermediate: varied grammar; advanced: idioms, complex sentences
+- useful_phrases: 4-6 key phrases from the conversation worth remembering
+- All translation_my and meaning_my must be in Myanmar script`, 0.4, 3000);
+  return safeParseJSON(raw);
+}
+
+export async function fetchStory(topic, genre, apiKey) {
+  const raw = await groqAI(apiKey, `You are a creative English writer for Myanmar students learning English reading.
+
+Write an engaging ${genre} piece about: "${topic}"
+
+Return ONLY raw JSON (no markdown):
+{
+  "title": "Story title",
+  "genre": "${genre}",
+  "intro_my": "မြန်မာဘာသာဖြင့် မိတ်ဆက် (1-2 ကြောင်း)",
+  "paragraphs": [
+    "First paragraph text (~150-200 words)...",
+    "Second paragraph text (~150-200 words)...",
+    "Third paragraph text (~150-200 words)...",
+    "Fourth paragraph text (~150-200 words)...",
+    "Fifth paragraph text (~150-200 words)..."
+  ],
+  "difficult_words": [
+    {"word": "...", "meaning_en": "simple English meaning", "meaning_my": "မြန်မာဘာသာ"}
+  ],
+  "comprehension_my": [
+    "မြန်မာဘာသာဖြင့် နားလည်မှုစစ်ဆေးသောမေးခွန်း ၁",
+    "မြန်မာဘာသာဖြင့် နားလည်မှုစစ်ဆေးသောမေးခွန်း ၂",
+    "မြန်မာဘာသာဖြင့် နားလည်မှုစစ်ဆေးသောမေးခွန်း ၃"
+  ]
+}
+
+Rules:
+- paragraphs: exactly 5 paragraphs, each ~150-200 words, vivid and engaging
+- difficult_words: 6-10 intermediate/advanced words the student might not know
+- comprehension_my: 3 questions in Myanmar to check understanding
+- Write in clear, engaging English appropriate for language learners`, 0.6, 4096);
+  return safeParseJSON(raw);
+}
+
 export async function fetchDaily(words, apiKey) {
   const raw = await groqAI(apiKey, `I'm learning English. My vocabulary words: ${words.map(w => w.word).join(', ')}
 
