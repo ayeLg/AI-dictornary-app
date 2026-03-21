@@ -256,6 +256,13 @@ body::after {
 }
 .chip.synonym { background: var(--accent-bg); border-color: rgba(99,102,241,0.25); color: var(--accent2); }
 .chip.synonym:hover { background: rgba(99,102,241,0.2); }
+.synonym-card { display: flex; flex-direction: column; gap: 6px; }
+.synonym-detail {
+  background: var(--card2); border: 1px solid var(--border);
+  border-radius: 8px; padding: 10px 12px;
+  display: flex; flex-direction: column; gap: 4px;
+  animation: fadeIn 0.15s ease;
+}
 .chip.antonym { background: var(--red-bg); border-color: rgba(239,68,68,0.2); color: #f87171; }
 .chip.antonym:hover { background: rgba(239,68,68,0.15); }
 /* Phase 3: Related words chip */
@@ -268,6 +275,100 @@ body::after {
 .example-item:last-child  { padding-bottom: 0; border-bottom: none; }
 .example-en { font-size: 14px; font-style: italic; color: var(--text); line-height: 1.6; margin-bottom: 3px; }
 .example-my { font-family: var(--font-my); font-size: 13px; color: var(--text2); line-height: 1.8; }
+
+/* ── Dictionary: POS Tabs ───────────────── */
+.pos-tab-row {
+  display: flex; gap: 6px; flex-wrap: wrap;
+  padding: 0 20px 12px; margin-top: -4px;
+}
+.pos-tab {
+  padding: 4px 14px; border-radius: 20px; font-size: 12px; font-weight: 700;
+  border: 1px solid var(--border); background: var(--card2); color: var(--text3);
+  cursor: pointer; font-family: var(--font-en); transition: all 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.pos-tab.active { /* color set inline */ }
+
+/* ── Dictionary: Definition List ────────── */
+.definition-list { display: flex; flex-direction: column; gap: 14px; }
+.def-item { display: flex; gap: 10px; align-items: flex-start; }
+.def-num {
+  flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%;
+  background: var(--accent-bg); color: var(--accent2);
+  font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-en); margin-top: 1px;
+}
+.def-body { flex: 1; }
+.def-en {
+  font-family: var(--font-en); font-size: 14px; color: var(--text); line-height: 1.55; font-weight: 500;
+}
+.def-my {
+  font-family: var(--font-my); font-size: 13px; color: var(--gold); line-height: 1.7; margin-top: 2px;
+}
+.def-example {
+  margin-top: 6px; padding: 6px 10px;
+  background: var(--bg); border-left: 2px solid var(--accent);
+  border-radius: 0 6px 6px 0;
+}
+.def-example-en {
+  font-family: var(--font-en); font-size: 13px; color: var(--text2); font-style: italic; line-height: 1.5;
+}
+.def-example-my {
+  font-family: var(--font-my); font-size: 12px; color: var(--text3); margin-top: 2px; line-height: 1.6;
+}
+.def-examples-block { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+.def-examples-block .def-example { margin-top: 0; }
+
+/* Register badge */
+.def-register {
+  display: inline-block; font-size: 10px; font-weight: 700; font-family: var(--font-en);
+  padding: 1px 7px; border-radius: 10px; text-transform: uppercase;
+  letter-spacing: 0.5px; margin-bottom: 4px;
+}
+/* Usage note */
+.def-usage-note {
+  display: flex; gap: 6px; align-items: flex-start;
+  margin: 6px 0 4px; padding: 7px 10px;
+  background: rgba(99,102,241,0.07); border: 1px solid rgba(99,102,241,0.18);
+  border-radius: 8px;
+}
+.def-usage-icon { font-size: 12px; flex-shrink: 0; margin-top: 1px; }
+.def-usage-en { font-family: var(--font-en); font-size: 12px; color: var(--text2); line-height: 1.5; }
+.def-usage-my { font-family: var(--font-my); font-size: 12px; color: var(--text3); margin-top: 2px; line-height: 1.6; }
+
+/* ── Dictionary: Collocations ───────────── */
+.colloc-list { display: flex; flex-direction: column; gap: 10px; }
+.colloc-item {
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 8px; padding: 10px 12px;
+}
+.colloc-phrase {
+  font-family: var(--font-en); font-size: 14px; color: var(--accent2); font-weight: 700;
+  cursor: pointer; display: inline-block; margin-bottom: 3px;
+}
+.colloc-phrase:hover { text-decoration: underline; text-underline-offset: 2px; }
+.colloc-my { font-family: var(--font-my); font-size: 13px; color: var(--text); line-height: 1.6; }
+.colloc-example {
+  font-family: var(--font-en); font-size: 12px; color: var(--text3); font-style: italic;
+  margin-top: 4px; line-height: 1.5;
+}
+
+/* ── Dictionary: Idioms ──────────────────── */
+.idiom-list { display: flex; flex-direction: column; gap: 10px; }
+.idiom-item {
+  background: rgba(245,158,11,0.06); border: 1px solid rgba(245,158,11,0.2);
+  border-radius: 8px; padding: 10px 12px;
+}
+.idiom-phrase {
+  font-family: var(--font-en); font-size: 14px; color: var(--gold); font-weight: 700;
+  font-style: italic; margin-bottom: 3px;
+}
+.idiom-meaning-en {
+  font-family: var(--font-en); font-size: 13px; color: var(--text2); margin-bottom: 2px;
+}
+.idiom-meaning-my {
+  font-family: var(--font-my); font-size: 13px; color: var(--text); line-height: 1.7;
+}
 
 /* ── Modal ──────────────────────────────── */
 .modal-overlay {

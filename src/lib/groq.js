@@ -52,29 +52,71 @@ export async function groqAI(apiKey, prompt, temp = 0.1, maxTokens = 2048) {
 }
 
 export async function fetchWord(word, apiKey) {
-  const raw = await groqAI(apiKey, `Analyze the English word or phrase "${word}" and return ONLY valid JSON (no markdown, no code fences) with this exact structure:
+  const raw = await groqAI(apiKey, `You are a comprehensive English-Myanmar dictionary. Analyze "${word}" and return ONLY raw JSON (no markdown):
+
 {
-  "word": "correct/normalized form of the input",
+  "word": "correct normalized form",
   "corrected_word": null,
-  "english_meaning": "clear concise English definition",
-  "myanmar_meaning": "မြန်မာဘာသာဖြင့် ရှင်းလင်းသောအဓိပ္ပာယ်",
-  "word_forms": {
-    "noun": "noun form or null",
-    "verb": "verb form or null",
-    "adjective": "adjective form or null",
-    "adverb": "adverb form or null"
-  },
-  "synonyms": ["word1","word2","word3","word4"],
-  "antonyms": ["word1","word2","word3"],
-  "related_words": ["word1","word2","word3","word4"],
-  "examples": [
-    {"en": "First example sentence.", "my": "ပထမဥပမာကြောင်း မြန်မာဘာသာ။"},
-    {"en": "Second example sentence.", "my": "ဒုတိယဥပမာကြောင်း မြန်မာဘာသာ။"}
-  ]
+  "phonetic": "/fəˈnɛtɪk/",
+  "english_meaning": "primary meaning (first definition)",
+  "myanmar_meaning": "ပထမအဓိပ္ပာယ် မြန်မာဘာသာ",
+  "meanings": [
+    {
+      "pos": "preposition",
+      "pos_my": "ဝိဘတ်",
+      "definitions": [
+        {
+          "definition_en": "concise English definition of this specific sense",
+          "definition_my": "မြန်မာဘာသာ အဓိပ္ပာယ်",
+          "register": "neutral",
+          "usage_note": "Brief usage pattern or context (sentence position, grammar pattern, when to use)",
+          "examples": [
+            {"en": "Short natural example.", "my": "မြန်မာ ဥပမာ"},
+            {"en": "Another short example.", "my": "မြန်မာ ဥပမာ"}
+          ]
+        }
+      ]
+    }
+  ],
+  "collocations": [
+    {"collocation": "phrase", "meaning_my": "အဓိပ္ပာယ်", "example_en": "example."}
+  ],
+  "idioms": [
+    {"phrase": "idiom", "meaning_en": "non-literal meaning", "meaning_my": "မြန်မာ", "example_en": "example."}
+  ],
+  "word_forms": {"noun": null, "verb": null, "adjective": null, "adverb": null},
+  "synonyms": [
+    {
+      "word": "synonym_word",
+      "nuance_en": "How this word DIFFERS from the main word — what makes it distinct (intensity, formality, context, connotation)",
+      "nuance_my": "မြန်မာဘာသာဖြင့် ကွာခြားချက် — ဘာကြောင့်ကွာနေတာလဲ",
+      "use_when": "Use this word when: [specific situation or context where this synonym is better/more natural]"
+    }
+  ],
+  "antonyms": ["w1","w2"],
+  "related_words": ["w1","w2","w3","w4"]
 }
-related_words: 4 semantically related words worth learning next (not synonyms/antonyms).
-If input has a typo, set corrected_word to the correct spelling. Otherwise null.
-Return raw JSON only.`);
+
+DEFINITION RULES (most important):
+- Cover ALL major distinct senses and ALL parts of speech the word has.
+- For prepositions (in/on/at/by/for/with etc): include AT LEAST 5-8 definitions covering: place/location, time, state/condition, manner, purpose, cause, agent, membership — whichever apply.
+- For conjunctions/adverbs with positional uses (beginning vs sentence-final): EACH position = its own definition. E.g. "tho" → def1: used at start/middle like "although"; def2: sentence-final informal tag "That's cool, tho."
+- For verbs with distinct senses (run a business vs run a race): each sense = its own definition.
+- Do NOT collapse multiple senses into one definition — be comprehensive like Oxford/Merriam-Webster.
+
+OTHER RULES:
+- pos_my: ကြိယာ(verb)/နာမ်(noun)/နာမဝိသေသန(adj)/ကြိယာဝိသေသန(adv)/သမ္ဗန္ဓကြိယာ(conj)/ဝိဘတ်(prep)/အပိုဒ်ကုန်(sentence-final) etc
+- register: "formal"|"informal"|"slang"|"neutral"
+- usage_note: short (1-2 sentences max). Null string "" if nothing to add.
+- examples: 2 per definition, SHORT sentences, must match that specific sense
+- collocations: 3-5 key combos that shift meaning
+- idioms: 2-4 non-literal phrases, empty array [] if none
+- english_meaning/myanmar_meaning = first sense of first POS
+- phonetic: IPA. corrected_word: typo fix or null.
+- synonyms: 2-4 synonyms as OBJECTS {word, nuance_en, nuance_my, use_when}. nuance_en = what specifically makes this synonym different from the main word (intensity, formality, connotation, typical context). use_when = concrete situation where this synonym is more appropriate than the main word.
+- antonyms: simple string array
+- related_words: 4 worth learning next
+- Return raw JSON only`, 0.15, 8000);
   return safeParseJSON(raw);
 }
 
