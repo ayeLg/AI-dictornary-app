@@ -85,23 +85,25 @@ export default function WordResult({ result, isSaved, onSave, onChipClick }) {
     <div className="word-card">
       {/* ── Header ── */}
       <div className="word-header">
-        <div style={{flex:1}}>
-          <div style={{display:'flex', alignItems:'center', gap:8, flexWrap:'wrap'}}>
+        {/* Left: word + phonetic */}
+        <div style={{flex:1, minWidth:0}}>
+          <div style={{display:'flex', alignItems:'center', gap:8}}>
             <div className="word-title">{result.word}</div>
             {hasTTS && (
               <button className={`tts-btn${speaking ? ' speaking' : ''}`} onClick={speak} title="Pronounce">🔊</button>
             )}
           </div>
           {result.phonetic && (
-            <div style={{fontSize:13, color:'var(--text3)', fontFamily:'var(--font-en)', marginTop:2}}>{result.phonetic}</div>
+            <div style={{fontSize:13, color:'var(--text3)', fontFamily:'var(--font-en)', marginTop:4}}>{result.phonetic}</div>
           )}
           {result.corrected_word && (
-            <div style={{fontSize:12, color:'var(--gold)', marginTop:2}}>
+            <div style={{fontSize:12, color:'var(--gold)', marginTop:4}}>
               ✏️ Did you mean: <strong>{result.corrected_word}</strong>?
             </div>
           )}
         </div>
-        <button className={`save-btn${isSaved ? ' saved' : ''}`} onClick={onSave} style={{alignSelf:'flex-start'}}>
+        {/* Right: save button */}
+        <button className={`save-btn${isSaved ? ' saved' : ''}`} onClick={onSave} style={{flexShrink:0, alignSelf:'flex-start', marginTop:6}}>
           {isSaved ? '✓ Saved' : '+ Save'}
         </button>
       </div>
