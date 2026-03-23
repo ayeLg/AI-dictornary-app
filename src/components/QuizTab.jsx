@@ -170,6 +170,10 @@ function QuizDone({ answers, onRetry }) {
   );
 }
 
+// How many recent words to remember and avoid repeating
+const RECENT_LIMIT = 12;
+const RECENT_KEY   = 'ming_quiz_recent';
+
 export default function QuizTab({ apiKey, saved }) {
   const [state, setState]             = useState('idle');
   const [questions, setQuestions]     = useState([]);
@@ -182,17 +186,25 @@ export default function QuizTab({ apiKey, saved }) {
 
   useEffect(() => {
     if (state === 'done' && userAnswers.length > 0) {
+      // Save quiz score history
       const score = userAnswers.filter(a => a.isCorrect).length;
       const entry = { date: new Date().toISOString(), score, total: userAnswers.length };
       lsSet(KEYS.QUIZ_HIST, [entry, ...lsGet(KEYS.QUIZ_HIST, [])].slice(0, 20));
+
+      // Save recently tested words to avoid next session
+      const testedWords = userAnswers.map(a => a.question.word);
+      const prev = lsGet(RECENT_KEY, []);
+      const updated = [...new Set([...testedWords, ...prev])].slice(0, RECENT_LIMIT);
+      lsSet(RECENT_KEY, updated);
     }
   }, [state]);
 
   const startQuiz = async () => {
     setState('loading'); setError(null);
     try {
-      const freqs = lsGet(KEYS.FREQ, {});
-      const qs    = await fetchQuiz(saved, apiKey, freqs);
+      const freqs       = lsGet(KEYS.FREQ, {});
+      const recentWords = lsGet(RECENT_KEY, []);
+      const qs          = await fetchQuiz(saved, apiKey, freqs, recentWords);
       setQuestions(qs); setCurrentQ(0);
       setUserAnswers([]); setSelectedOpt(null); setAnswered(false);
       setState('active');

@@ -120,36 +120,54 @@ OTHER RULES:
   return safeParseJSON(raw);
 }
 
-export async function fetchQuiz(saved, apiKey, freqs = {}) {
-  const numQ = Math.min(6, saved.length);  // max 6 questions to avoid token overflow
-  // Sort by frequency (most searched first)
-  const wordList = [...saved]
-    .sort((a, b) => (freqs[b.word] || 0) - (freqs[a.word] || 0))
-    .slice(0, 12)  // limit word list to 12 to keep prompt short
-    .map(w => ({ word: w.word, myanmar_meaning: w.myanmar_meaning }));
+// Weighted random pick: higher freq words appear more but not exclusively
+function weightedShuffle(arr, freqs) {
+  const weighted = arr.map(w => ({
+    item: w,
+    weight: 1 + (freqs[w.word] || 0) * 0.5 + Math.random() * 2, // freq boost + strong random
+  }));
+  return weighted.sort((a, b) => b.weight - a.weight).map(x => x.item);
+}
 
-  const freqNote = Object.keys(freqs).length > 0
-    ? `\nPrioritize these words: ${[...saved].sort((a,b)=>(freqs[b.word]||0)-(freqs[a.word]||0)).slice(0,5).map(w=>w.word).join(', ')}`
+export async function fetchQuiz(saved, apiKey, freqs = {}, recentWords = []) {
+  const numQ = Math.min(6, saved.length);
+
+  // Weighted-random shuffle so different words appear each session
+  const shuffled = weightedShuffle([...saved], freqs);
+
+  // Prefer words NOT recently tested, but still include some if pool is small
+  const fresh = shuffled.filter(w => !recentWords.includes(w.word));
+  const pool = fresh.length >= numQ ? fresh : shuffled; // fallback to full list if not enough fresh
+  const wordList = pool.slice(0, 14).map(w => ({ word: w.word, myanmar_meaning: w.myanmar_meaning }));
+
+  const avoidNote = recentWords.length > 0
+    ? `\nAVOID testing these recently asked words if possible: ${recentWords.join(', ')}`
     : '';
 
-  const raw = await groqAI(apiKey, `English-Myanmar vocabulary quiz. Words: ${JSON.stringify(wordList)}
-${freqNote}
+  // Random seed string for output variety
+  const seed = Math.random().toString(36).slice(2, 8);
 
-Generate ${numQ} MCQ questions. Alternate Type A and Type B.
+  const raw = await groqAI(apiKey, `English-Myanmar vocabulary quiz. Session seed: ${seed}
+Words available: ${JSON.stringify(wordList)}
+${avoidNote}
+
+Generate ${numQ} MCQ questions. Alternate Type A and Type B. Pick DIFFERENT words for each question.
 
 Type A (English → Myanmar): question_text = "What is the Myanmar meaning of '[english_word]'?"
 Type B (Myanmar → English): question_text = "What is the English word for '[actual_myanmar_meaning_here]'?"
 
 Rules:
+- Each question must test a DIFFERENT word from the list
 - Type B: MUST put the actual Myanmar meaning text inside the question_text
 - All options: max 5 words each
-- Shuffle correct answer position randomly among 4 options
+- Shuffle correct answer position randomly (different position each question)
+- Wrong options must be plausible but clearly wrong
 
 Return JSON object with a "questions" array:
 {"questions":[
   {"type":"A","word":"drench","question_text":"What is the Myanmar meaning of 'drench'?","correct":"ရေစိုအောင်","options":["ရေစိုအောင်","ပျော်ရွှင်","မြန်မြန်","ကြောက်"],"explanation":"Drench means to soak completely."},
   {"type":"B","word":"timid","question_text":"What is the English word for 'ရဲရင့်မှုမရှိသော'?","correct":"timid","options":["timid","brave","strong","reckless"],"explanation":"Timid means lacking courage."}
-]}`, 0.2, 3000);
+]}`, 0.6, 3000);
 
   return safeParseJSON(raw).questions;
 }
