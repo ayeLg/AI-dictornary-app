@@ -62,23 +62,52 @@ function SynonymsSection({ synonyms, word }) {
   );
 }
 
-export default function SavedWordModal({ word, onClose, onRemove }) {
-  const f = word.word_forms || {};
+export default function SavedWordModal({ word, onClose, onRemove, onUpdate }) {
   const sheetRef = useRef(null);
   const startY = useRef(0);
   const [dragY, setDragY] = useState(0);
   const isDragging = useRef(false);
   const [speaking, setSpeaking] = useState(false);
   const [activePOS, setActivePOS] = useState(0);
+  const [editing, setEditing] = useState(null); // { posIdx, defIdx }
+  const [editVal, setEditVal] = useState('');
+  const [savedFlash, setSavedFlash] = useState(null);
+  // Local copy so edits reflect immediately without closing modal
+  const [wordData, setWordData] = useState(word);
   const hasTTS = 'speechSynthesis' in window;
 
-  const hasNewFormat = Array.isArray(word.meanings) && word.meanings.length > 0;
-  const activeMeaning = hasNewFormat ? (word.meanings[activePOS] || word.meanings[0]) : null;
+  const f = wordData.word_forms || {};
+  const hasNewFormat = Array.isArray(wordData.meanings) && wordData.meanings.length > 0;
+  const activeMeaning = hasNewFormat ? (wordData.meanings[activePOS] || wordData.meanings[0]) : null;
+
+  const startEdit = (posIdx, defIdx, currentText) => { setEditing({ posIdx, defIdx }); setEditVal(currentText || ''); };
+  const cancelEdit = () => setEditing(null);
+  const saveEdit = () => {
+    if (!editing || !onUpdate) { setEditing(null); return; }
+    const { posIdx, defIdx } = editing;
+    const updated = {
+      ...wordData,
+      meanings: wordData.meanings.map((m, pi) =>
+        pi !== posIdx ? m : {
+          ...m,
+          definitions: m.definitions.map((d, di) =>
+            di !== defIdx ? d : { ...d, definition_my: editVal }
+          )
+        }
+      )
+    };
+    setWordData(updated);
+    onUpdate(updated);
+    const flashKey = `${posIdx}-${defIdx}`;
+    setSavedFlash(flashKey);
+    setTimeout(() => setSavedFlash(null), 1500);
+    setEditing(null);
+  };
 
   const speak = () => {
     if (!hasTTS) return;
     window.speechSynthesis.cancel();
-    const utt = new SpeechSynthesisUtterance(word.word);
+    const utt = new SpeechSynthesisUtterance(wordData.word);
     utt.lang = 'en-US'; utt.rate = 0.9;
     utt.onstart = () => setSpeaking(true);
     utt.onend = () => setSpeaking(false);
@@ -123,11 +152,11 @@ export default function SavedWordModal({ word, onClose, onRemove }) {
         <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:14}}>
           <div>
             <div style={{display:'flex', alignItems:'center', gap:8}}>
-              <div style={{fontSize:26, fontWeight:700, color:'var(--text)', fontFamily:'var(--font-title)', letterSpacing:'-0.5px'}}>{word.word}</div>
+              <div style={{fontSize:26, fontWeight:700, color:'var(--text)', fontFamily:'var(--font-title)', letterSpacing:'-0.5px'}}>{wordData.word}</div>
               {hasTTS && <button className={`tts-btn${speaking ? ' speaking' : ''}`} onClick={speak} title="Pronounce">🔊</button>}
             </div>
-            {word.phonetic && (
-              <div style={{fontSize:13, color:'var(--text3)', fontFamily:'var(--font-en)', marginTop:3}}>{word.phonetic}</div>
+            {wordData.phonetic && (
+              <div style={{fontSize:13, color:'var(--text3)', fontFamily:'var(--font-en)', marginTop:3}}>{wordData.phonetic}</div>
             )}
             {!hasNewFormat && (
               <div style={{display:'flex', gap:5, marginTop:4}}>
@@ -144,9 +173,9 @@ export default function SavedWordModal({ word, onClose, onRemove }) {
         {/* ── NEW FORMAT: POS tabs + definitions ── */}
         {hasNewFormat ? (
           <>
-            {word.meanings.length > 1 && (
+            {wordData.meanings.length > 1 && (
               <div className="pos-tab-row">
-                {word.meanings.map((m, i) => {
+                {wordData.meanings.map((m, i) => {
                   const s = posStyle(m.pos);
                   return (
                     <button key={i} className={`pos-tab${activePOS === i ? ' active' : ''}`}
@@ -161,7 +190,7 @@ export default function SavedWordModal({ word, onClose, onRemove }) {
 
             {activeMeaning && (
               <div className="info-section" style={{paddingTop:0}}>
-                {word.meanings.length === 1 && (() => {
+                {wordData.meanings.length === 1 && (() => {
                   const s = posStyle(activeMeaning.pos);
                   return (
                     <div style={{marginBottom:8}}>
@@ -184,7 +213,34 @@ export default function SavedWordModal({ word, onClose, onRemove }) {
                             <span className="def-register" style={{background: regStyle.bg, color: regStyle.color}}>{reg}</span>
                           )}
                           <div className="def-en">{def.definition_en}</div>
-                          <div className="def-my">{def.definition_my}</div>
+                          {editing?.posIdx === activePOS && editing?.defIdx === i ? (
+                            <div className="def-edit-wrap">
+                              <textarea
+                                className="def-edit-input"
+                                value={editVal}
+                                onChange={e => setEditVal(e.target.value)}
+                                rows={2}
+                                autoFocus
+                              />
+                              <div className="def-edit-actions">
+                                <button className="def-edit-save" onClick={saveEdit}>✓ Save</button>
+                                <button className="def-edit-cancel" onClick={cancelEdit}>✗ Cancel</button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="def-my-row">
+                              <div className="def-my">{def.definition_my}</div>
+                              {onUpdate && (
+                                <button
+                                  className={`def-edit-btn${savedFlash === `${activePOS}-${i}` ? ' flashed' : ''}`}
+                                  onClick={() => startEdit(activePOS, i, def.definition_my)}
+                                  title="Edit Myanmar meaning"
+                                >
+                                  {savedFlash === `${activePOS}-${i}` ? '✓' : '✏️'}
+                                </button>
+                              )}
+                            </div>
+                          )}
                           {def.usage_note && def.usage_note !== 'null' && def.usage_note.trim() !== '' && (
                             <div className="def-usage-note">
                               <span className="def-usage-icon">💡</span>
@@ -210,11 +266,11 @@ export default function SavedWordModal({ word, onClose, onRemove }) {
             )}
 
             {/* Collocations */}
-            {word.collocations?.length > 0 && (
+            {wordData.collocations?.length > 0 && (
               <div className="info-section">
                 <div className="info-label">🔗 Collocations</div>
                 <div className="colloc-list">
-                  {word.collocations.map((c, i) => (
+                  {wordData.collocations.map((c, i) => (
                     <div key={i} className="colloc-item">
                       <div className="colloc-phrase">{c.collocation}</div>
                       <div className="colloc-my">{c.meaning_my}</div>
@@ -226,11 +282,11 @@ export default function SavedWordModal({ word, onClose, onRemove }) {
             )}
 
             {/* Idioms */}
-            {word.idioms?.length > 0 && (
+            {wordData.idioms?.length > 0 && (
               <div className="info-section">
                 <div className="info-label">💡 Idioms & Phrases</div>
                 <div className="idiom-list">
-                  {word.idioms.map((id, i) => (
+                  {wordData.idioms.map((id, i) => (
                     <div key={i} className="idiom-item">
                       <div className="idiom-phrase">"{id.phrase}"</div>
                       <div className="idiom-meaning-en">{id.meaning_en}</div>
@@ -247,13 +303,13 @@ export default function SavedWordModal({ word, onClose, onRemove }) {
           <>
             <div className="info-section">
               <div className="info-label">Meaning</div>
-              <div className="meaning-en">{word.english_meaning}</div>
-              <div className="meaning-my">{word.myanmar_meaning}</div>
+              <div className="meaning-en">{wordData.english_meaning}</div>
+              <div className="meaning-my">{wordData.myanmar_meaning}</div>
             </div>
-            {word.examples?.length > 0 && (
+            {wordData.examples?.length > 0 && (
               <div className="info-section">
                 <div className="info-label">Examples</div>
-                {word.examples.map((ex, i) => (
+                {wordData.examples.map((ex, i) => (
                   <div key={i} className="example-item">
                     <div className="example-en">"{ex.en}"</div>
                     <div className="example-my">{ex.my}</div>
@@ -278,29 +334,29 @@ export default function SavedWordModal({ word, onClose, onRemove }) {
         )}
 
         {/* ── Synonyms ── */}
-        {word.synonyms?.length > 0 && (
+        {wordData.synonyms?.length > 0 && (
           <div className="info-section">
             <div className="info-label">Synonyms <span style={{fontWeight:400, fontSize:10, color:'var(--text3)', textTransform:'none', letterSpacing:0}}>— nuance ကွဲပြားသော</span></div>
-            <SynonymsSection synonyms={word.synonyms} word={word.word} />
+            <SynonymsSection synonyms={wordData.synonyms} word={wordData.word} />
           </div>
         )}
 
-        {word.antonyms?.length > 0 && (
+        {wordData.antonyms?.length > 0 && (
           <div className="info-section">
             <div className="info-label">Antonyms</div>
-            <div className="chip-row">{word.antonyms.map(a => <span key={a} className="chip ant">{a}</span>)}</div>
+            <div className="chip-row">{wordData.antonyms.map(a => <span key={a} className="chip ant">{a}</span>)}</div>
           </div>
         )}
 
-        {word.related_words?.length > 0 && (
+        {wordData.related_words?.length > 0 && (
           <div className="info-section">
             <div className="info-label">Related Words</div>
-            <div className="chip-row">{word.related_words.map(r => <span key={r} className="chip rel">{r}</span>)}</div>
+            <div className="chip-row">{wordData.related_words.map(r => <span key={r} className="chip rel">{r}</span>)}</div>
           </div>
         )}
 
         <button className="icon-btn danger" style={{width:'100%', marginTop:12, padding:'10px', borderRadius:10, fontSize:13}}
-          onClick={() => { onRemove(word.word); onClose(); }}>
+          onClick={() => { onRemove(wordData.word); onClose(); }}>
           🗑 Remove from saved
         </button>
       </div>

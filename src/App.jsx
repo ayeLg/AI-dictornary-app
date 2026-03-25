@@ -185,6 +185,7 @@ export default function App() {
             apiKey={apiKey} saved={saved}
             onEditKey={() => setShowKeyModal(true)}
             onRemoveWord={handleRemoveWord}
+            onSaveToggle={handleSaveToggle}
             onSwitchTab={(word) => { setPendingSearch(word); setActiveTab('dictionary'); }}
             user={user} syncing={syncing}
             onLogin={handleGoogleLogin} onLogout={handleLogout}

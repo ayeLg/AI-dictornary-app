@@ -9,7 +9,7 @@ function getMasteryLevel(srs) {
   return 'Familiar';
 }
 
-export default function ProfileTab({ apiKey, saved, onEditKey, onRemoveWord, onSwitchTab, user, syncing, onLogin, onLogout, srsData = {}, streak = { lastDate: '', count: 0 } }) {
+export default function ProfileTab({ apiKey, saved, onEditKey, onRemoveWord, onSwitchTab, onSaveToggle, user, syncing, onLogin, onLogout, srsData = {}, streak = { lastDate: '', count: 0 } }) {
   const [quizHist, setQuizHist] = useState(() => lsGet(KEYS.QUIZ_HIST, []));
   const [searchHist, setSearchHist] = useState(() => lsGet(KEYS.HISTORY, []));
   const [selectedWord, setSelectedWord] = useState(null);
@@ -155,7 +155,12 @@ export default function ProfileTab({ apiKey, saved, onEditKey, onRemoveWord, onS
         Saved Words ({saved.length})
       </div>
       {selectedWord && (
-        <SavedWordModal word={selectedWord} onClose={() => setSelectedWord(null)} onRemove={onRemoveWord} />
+        <SavedWordModal
+          word={selectedWord}
+          onClose={() => setSelectedWord(null)}
+          onRemove={onRemoveWord}
+          onUpdate={onSaveToggle ? (updated) => { onSaveToggle(updated, true); setSelectedWord(updated); } : null}
+        />
       )}
       {saved.length === 0 ? (
         <div className="empty-state" style={{ padding: '20px 0' }}>
