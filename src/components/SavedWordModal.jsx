@@ -84,7 +84,7 @@ export default function SavedWordModal({ word, onClose, onRemove }) {
         {word.synonyms?.length > 0 && (
           <div className="info-section">
             <div className="info-label">Synonyms</div>
-            <div className="chip-row">{word.synonyms.map(s => <span key={s} className="chip syn">{s}</span>)}</div>
+            <div className="chip-row">{word.synonyms.map((s, i) => { const w = typeof s === 'string' ? s : s.word; return <span key={i} className="chip syn">{w}</span>; })}</div>
           </div>
         )}
         {word.antonyms?.length > 0 && (
