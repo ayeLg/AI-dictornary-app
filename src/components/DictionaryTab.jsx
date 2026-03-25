@@ -179,6 +179,15 @@ export default function DictionaryTab({ apiKey, saved, onSaveToggle, pendingSear
         <WordResult
           result={result} isSaved={isSaved}
           onSave={() => onSaveToggle(result)} onChipClick={doSearch}
+          onWordUpdate={(updated) => {
+            setResult(updated);
+            // Update localStorage cache so edits persist
+            const cache = lsGet('ming_cache', {});
+            cache[updated.word?.toLowerCase()] = updated;
+            lsSet('ming_cache', cache);
+            // If saved, update saved list too
+            onSaveToggle(updated, true);
+          }}
         />
       )}
 

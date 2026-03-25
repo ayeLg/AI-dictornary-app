@@ -88,12 +88,20 @@ export default function App() {
     if (user) cloudSave(user.uid, lsGet(KEYS.SAVED, []), key).catch(() => {});
   };
 
-  const handleSaveToggle = (result) => {
+  const handleSaveToggle = (result, updateOnly = false) => {
     setSaved(prev => {
       const exists = prev.some(s => s.word?.toLowerCase() === result.word?.toLowerCase());
-      const next   = exists
-        ? prev.filter(s => s.word?.toLowerCase() !== result.word?.toLowerCase())
-        : [result, ...prev];
+      let next;
+      if (updateOnly) {
+        // Update existing entry only (for meaning edits) — don't toggle
+        next = exists
+          ? prev.map(s => s.word?.toLowerCase() === result.word?.toLowerCase() ? result : s)
+          : prev;
+      } else {
+        next = exists
+          ? prev.filter(s => s.word?.toLowerCase() !== result.word?.toLowerCase())
+          : [result, ...prev];
+      }
       lsSet(KEYS.SAVED, next);
       if (user) cloudSave(user.uid, next).catch(() => {});
       return next;

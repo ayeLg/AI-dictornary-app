@@ -305,6 +305,44 @@ Rules:
   return safeParseJSON(raw);
 }
 
+export async function fetchDailyWordList(level, apiKey) {
+  const levelDesc = {
+    basic:        'A1-A2 level, very common everyday words (happy, busy, tired, kind, angry...)',
+    intermediate: 'B1-B2 level, common but slightly more challenging words (grateful, curious, ambitious, reluctant...)',
+    advanced:     'C1-C2 level, sophisticated vocabulary (ephemeral, tenacious, eloquent, pragmatic...)',
+  }[level];
+
+  const seed = Math.random().toString(36).slice(2, 6);
+  const raw = await groqAI(apiKey, `Generate 10 useful English vocabulary words for Myanmar learners. Seed: ${seed}
+
+Level: ${level} — ${levelDesc}
+
+Pick VARIED words across different parts of speech (nouns, verbs, adjectives, adverbs).
+Choose words that are genuinely useful in daily life or writing.
+
+Return ONLY raw JSON:
+{
+  "words": [
+    {
+      "word": "grateful",
+      "pos": "adjective",
+      "myanmar_meaning": "ကျေးဇူးတင်သော",
+      "example_en": "She felt grateful for all the help she received.",
+      "example_my": "သူမသည် ရရှိသော အကူအညီများအတွက် ကျေးဇူးတင်ခဲ့သည်"
+    }
+  ]
+}
+
+Rules:
+- Exactly 10 words
+- All different words, varied parts of speech
+- myanmar_meaning: concise Myanmar translation (5 words max)
+- example_en: short natural sentence (max 12 words)
+- example_my: Myanmar translation of the example
+- Return raw JSON only`, 0.7, 3000);
+  return safeParseJSON(raw).words;
+}
+
 export async function fetchDaily(words, apiKey) {
   const raw = await groqAI(apiKey, `I'm learning English. My vocabulary words: ${words.map(w => w.word).join(', ')}
 

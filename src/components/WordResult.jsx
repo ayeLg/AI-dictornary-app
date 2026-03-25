@@ -60,11 +60,43 @@ const POS_COLORS = {
 };
 const posStyle = (pos) => POS_COLORS[pos] || { bg: 'rgba(148,163,184,0.15)', color: '#94a3b8', label: pos };
 
-export default function WordResult({ result, isSaved, onSave, onChipClick }) {
+export default function WordResult({ result, isSaved, onSave, onChipClick, onWordUpdate }) {
   const f = result.word_forms || {};
   const [speaking, setSpeaking] = useState(false);
   const [activePOS, setActivePOS] = useState(0);
   const hasTTS = 'speechSynthesis' in window;
+
+  // Edit state: key = `${posIdx}-${defIdx}`, value = edited text or null
+  const [editing, setEditing] = useState(null); // { posIdx, defIdx }
+  const [editVal, setEditVal] = useState('');
+  const [savedFlash, setSavedFlash] = useState(null); // key of recently saved def
+
+  const startEdit = (posIdx, defIdx, currentText) => {
+    setEditing({ posIdx, defIdx });
+    setEditVal(currentText || '');
+  };
+  const cancelEdit = () => setEditing(null);
+  const saveEdit = () => {
+    if (!editing || !onWordUpdate) { setEditing(null); return; }
+    const { posIdx, defIdx } = editing;
+    // Deep-clone and update the specific definition_my
+    const updated = {
+      ...result,
+      meanings: result.meanings.map((m, pi) =>
+        pi !== posIdx ? m : {
+          ...m,
+          definitions: m.definitions.map((d, di) =>
+            di !== defIdx ? d : { ...d, definition_my: editVal }
+          )
+        }
+      )
+    };
+    onWordUpdate(updated);
+    const flashKey = `${posIdx}-${defIdx}`;
+    setSavedFlash(flashKey);
+    setTimeout(() => setSavedFlash(null), 1500);
+    setEditing(null);
+  };
 
   // New format: meanings[] array; Old format fallback
   const hasNewFormat = Array.isArray(result.meanings) && result.meanings.length > 0;
@@ -163,7 +195,35 @@ export default function WordResult({ result, isSaved, onSave, onChipClick }) {
                           </span>
                         )}
                         <div className="def-en">{def.definition_en}</div>
-                        <div className="def-my">{def.definition_my}</div>
+                        {/* Editable definition_my */}
+                        {editing?.posIdx === activePOS && editing?.defIdx === i ? (
+                          <div className="def-edit-wrap">
+                            <textarea
+                              className="def-edit-input"
+                              value={editVal}
+                              onChange={e => setEditVal(e.target.value)}
+                              rows={2}
+                              autoFocus
+                            />
+                            <div className="def-edit-actions">
+                              <button className="def-edit-save" onClick={saveEdit}>✓ Save</button>
+                              <button className="def-edit-cancel" onClick={cancelEdit}>✗ Cancel</button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="def-my-row">
+                            <div className="def-my">{def.definition_my}</div>
+                            {onWordUpdate && (
+                              <button
+                                className={`def-edit-btn${savedFlash === `${activePOS}-${i}` ? ' flashed' : ''}`}
+                                onClick={() => startEdit(activePOS, i, def.definition_my)}
+                                title="Edit Myanmar meaning"
+                              >
+                                {savedFlash === `${activePOS}-${i}` ? '✓' : '✏️'}
+                              </button>
+                            )}
+                          </div>
+                        )}
 
                         {/* Usage note */}
                         {def.usage_note && def.usage_note !== 'null' && def.usage_note.trim() !== '' && (

@@ -559,6 +559,45 @@ body::after {
 .tts-btn.speaking { opacity: 1; animation: tts-pulse 0.6s ease infinite alternate; }
 @keyframes tts-pulse { from { transform: scale(1); } to { transform: scale(1.25); } }
 
+/* ── Edit Myanmar Meaning ───────────────── */
+.def-my-row {
+  display: flex; align-items: flex-start; gap: 6px;
+}
+.def-edit-btn {
+  flex-shrink: 0; background: none; border: none; cursor: pointer;
+  font-size: 13px; padding: 1px 3px; border-radius: 4px; opacity: 0.4;
+  transition: opacity 0.15s; -webkit-tap-highlight-color: transparent; margin-top: 1px;
+}
+.def-edit-btn:hover, .def-edit-btn.flashed { opacity: 1; }
+.def-edit-btn.flashed { color: var(--green); font-size: 14px; }
+.def-edit-wrap { margin-top: 2px; }
+.def-edit-input {
+  width: 100%; box-sizing: border-box;
+  background: var(--card2); border: 1px solid var(--accent);
+  color: var(--text); border-radius: 8px; padding: 8px 10px;
+  font-family: var(--font-my); font-size: 14px; line-height: 1.6;
+  resize: vertical; outline: none;
+}
+.def-edit-actions { display: flex; gap: 8px; margin-top: 6px; }
+.def-edit-save {
+  padding: 5px 14px; border-radius: 7px; font-size: 12px; font-weight: 700;
+  background: var(--accent); color: #fff; border: none; cursor: pointer;
+  font-family: var(--font-en);
+}
+.def-edit-cancel {
+  padding: 5px 14px; border-radius: 7px; font-size: 12px; font-weight: 700;
+  background: var(--card2); color: var(--text3); border: 1px solid var(--border); cursor: pointer;
+  font-family: var(--font-en);
+}
+
+/* ── Daily Word List Cards ───────────────── */
+.wlist-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 12px; padding: 14px 16px; cursor: pointer;
+  transition: border-color 0.15s; -webkit-tap-highlight-color: transparent;
+}
+.wlist-card:active { border-color: var(--accent); }
+
 /* ── V2: Flashcard ──────────────────────── */
 .flashcard-scene {
   width: 100%; perspective: 900px;
