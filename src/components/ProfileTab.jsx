@@ -13,6 +13,7 @@ export default function ProfileTab({ apiKey, saved, onEditKey, onRemoveWord, onS
   const [quizHist, setQuizHist] = useState(() => lsGet(KEYS.QUIZ_HIST, []));
   const [searchHist, setSearchHist] = useState(() => lsGet(KEYS.HISTORY, []));
   const [selectedWord, setSelectedWord] = useState(null);
+  const [wordSearch, setWordSearch] = useState('');
   const freq = lsGet(KEYS.FREQ, {});
 
   const totalSearches = Object.values(freq).reduce((a, b) => a + b, 0);
@@ -151,8 +152,8 @@ export default function ProfileTab({ apiKey, saved, onEditKey, onRemoveWord, onS
       </div>
 
       {/* Saved Words */}
-      <div className="section-label" style={{ marginBottom: 9 }}>
-        Saved Words ({saved.length})
+      <div className="section-label" style={{ marginBottom: 9, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span>Saved Words ({saved.length})</span>
       </div>
       {selectedWord && (
         <SavedWordModal
@@ -168,27 +169,54 @@ export default function ProfileTab({ apiKey, saved, onEditKey, onRemoveWord, onS
           <div>Saved words မရှိသေးပါ</div>
         </div>
       ) : (
-        <div className="panel-card">
-          {saved.map(w => (
-            <div key={w.word} className="saved-word-item" style={{ cursor: 'pointer' }} onClick={() => setSelectedWord(w)}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                  <div className="saved-word-name">{w.word}</div>
-                  {freq[w.word] > 0 && (
-                    <span className="freq-badge">{freq[w.word]}×</span>
-                  )}
-                  <span style={{ fontSize: 10, color: masteryColors[getMasteryLevel(srsData[w.word])], fontWeight: 700 }}>
-                    {getMasteryLevel(srsData[w.word])}
-                  </span>
-                </div>
-                <div className="saved-word-meaning">
-                  {(w.myanmar_meaning || '').slice(0, 48)}{(w.myanmar_meaning || '').length > 48 ? '…' : ''}
-                </div>
+        <>
+          {/* Search box */}
+          <div style={{ position: 'relative', marginBottom: 10 }}>
+            <span style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', fontSize: 14, color: 'var(--text3)', pointerEvents: 'none' }}>🔍</span>
+            <input
+              className="modal-input"
+              style={{ paddingLeft: 32, fontSize: 13, padding: '9px 12px 9px 32px' }}
+              placeholder="Search saved words..."
+              value={wordSearch}
+              onChange={e => setWordSearch(e.target.value)}
+            />
+            {wordSearch && (
+              <button onClick={() => setWordSearch('')}
+                style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: 'var(--text3)' }}>✕</button>
+            )}
+          </div>
+
+          <div className="panel-card">
+            {saved.filter(w => !wordSearch.trim() || w.word.toLowerCase().includes(wordSearch.toLowerCase())).length === 0 ? (
+              <div style={{ padding: '16px', textAlign: 'center', color: 'var(--text3)', fontSize: 13 }}>
+                "{wordSearch}" — ရှာမတွေ့ပါ
               </div>
-              <button className="icon-btn danger" onClick={e => { e.stopPropagation(); onRemoveWord(w.word); }}>Remove</button>
-            </div>
-          ))}
-        </div>
+            ) : (
+              saved.filter(w => !wordSearch.trim() || w.word.toLowerCase().includes(wordSearch.toLowerCase())).map(w => {
+                const displayMy = w.meanings?.[0]?.definitions?.[0]?.definition_my || w.myanmar_meaning || '';
+                return (
+                  <div key={w.word} className="saved-word-item" style={{ cursor: 'pointer' }} onClick={() => setSelectedWord(w)}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                        <div className="saved-word-name">{w.word}</div>
+                        {freq[w.word] > 0 && (
+                          <span className="freq-badge">{freq[w.word]}×</span>
+                        )}
+                        <span style={{ fontSize: 10, color: masteryColors[getMasteryLevel(srsData[w.word])], fontWeight: 700 }}>
+                          {getMasteryLevel(srsData[w.word])}
+                        </span>
+                      </div>
+                      <div className="saved-word-meaning">
+                        {displayMy.slice(0, 48)}{displayMy.length > 48 ? '…' : ''}
+                      </div>
+                    </div>
+                    <button className="icon-btn danger" onClick={e => { e.stopPropagation(); onRemoveWord(w.word); }}>Remove</button>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </>
       )}
 
       {/* Search History */}
