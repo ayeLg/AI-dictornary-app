@@ -568,9 +568,17 @@ function VoiceSection({ apiKey }) {
     return (
       <div style={{padding:'16px 20px'}}>
         <div style={{fontFamily:'var(--font-my)', fontSize:13, color:'var(--text2)', marginBottom:12}}>
-          Topic ရွေးပါ → AI နဲ့ English conversation လေ့ကျင့်ပါ 🎙️
+          Topic ရွေးပါ (သို့) ကိုယ်ပိုင် topic ထည့်ပါ → AI နဲ့ English conversation လေ့ကျင့်ပါ 🎙️
         </div>
-        <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8, marginBottom:14}}>
+
+        {/* Preset topics */}
+        <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8, marginBottom:10}}>
+          {/* Free Talk tile */}
+          <button onClick={() => setTopic('free talk — any topic')}
+            style={{padding:'10px 6px', borderRadius:10, border:`1px solid ${topic === 'free talk — any topic' ? 'var(--accent2)' : 'var(--border)'}`, background: topic === 'free talk — any topic' ? 'var(--accent-bg)' : 'var(--card)', cursor:'pointer', textAlign:'center'}}>
+            <div style={{fontSize:20, marginBottom:2}}>🗣️</div>
+            <div style={{fontSize:11, fontWeight:600, color: topic === 'free talk — any topic' ? 'var(--accent2)' : 'var(--text)'}}>Free Talk</div>
+          </button>
           {VOICE_TOPICS.map(t => (
             <button key={t.key} onClick={() => setTopic(t.key)}
               style={{padding:'10px 6px', borderRadius:10, border:`1px solid ${topic === t.key ? 'var(--accent2)' : 'var(--border)'}`, background: topic === t.key ? 'var(--accent-bg)' : 'var(--card)', cursor:'pointer', textAlign:'center'}}>
@@ -579,12 +587,25 @@ function VoiceSection({ apiKey }) {
             </button>
           ))}
         </div>
+
+        {/* Custom topic input */}
+        <div style={{marginBottom:14}}>
+          <input
+            className="modal-input"
+            style={{fontSize:13, padding:'10px 12px'}}
+            placeholder="✏️ Custom topic... (e.g. climate change, my weekend, anime)"
+            value={VOICE_TOPICS.some(t => t.key === topic) || topic === 'free talk — any topic' ? '' : topic}
+            onChange={e => setTopic(e.target.value)}
+            onFocus={() => { if (VOICE_TOPICS.some(t => t.key === topic) || topic === 'free talk — any topic') setTopic(''); }}
+          />
+        </div>
+
         {!SR && (
           <div style={{background:'#ff6b6b22', border:'1px solid #ff6b6b44', borderRadius:8, padding:'10px 12px', marginBottom:12, fontSize:12, color:'#ff9090', fontFamily:'var(--font-my)'}}>
             ⚠️ Voice input သည် ဤ browser မှ support မလုပ်ပါ။ Chrome (Android/Desktop) ကို သုံးပါ။
           </div>
         )}
-        <button className="btn-primary" onClick={startConversation} disabled={!topic || !apiKey} style={{width:'100%'}}>
+        <button className="btn-primary" onClick={startConversation} disabled={!topic.trim() || !apiKey} style={{width:'100%'}}>
           🎙️ Start Conversation
         </button>
       </div>
