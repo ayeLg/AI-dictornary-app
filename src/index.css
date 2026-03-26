@@ -598,6 +598,61 @@ body::after {
 }
 .wlist-card:active { border-color: var(--accent); }
 
+/* ── Voice Chat ───────────────────────────── */
+.voice-messages {
+  min-height: 180px;
+  max-height: 320px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding: 4px 0;
+}
+.vbubble-wrap { display: flex; }
+.vbubble-wrap.ai   { justify-content: flex-start; }
+.vbubble-wrap.user { justify-content: flex-end; }
+.vbubble {
+  max-width: 82%;
+  padding: 10px 14px;
+  border-radius: 16px;
+  line-height: 1.5;
+}
+.vbubble.ai {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-bottom-left-radius: 4px;
+}
+.vbubble.user {
+  background: var(--accent-bg);
+  border: 1px solid var(--accent2);
+  border-bottom-right-radius: 4px;
+}
+.mic-btn {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  background: var(--card);
+  font-size: 26px;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.mic-btn:hover:not(:disabled) { background: var(--accent-bg); border-color: var(--accent2); }
+.mic-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.mic-btn.mic-active {
+  border-color: #e74c3c;
+  background: #e74c3c22;
+  animation: mic-pulse 1.2s ease-in-out infinite;
+}
+@keyframes mic-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(231,76,60,0.4); }
+  50%       { box-shadow: 0 0 0 10px rgba(231,76,60,0); }
+}
+
 /* ── V2: Flashcard ──────────────────────── */
 .flashcard-scene {
   width: 100%; perspective: 900px;

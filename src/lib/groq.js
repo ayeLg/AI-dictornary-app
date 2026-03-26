@@ -358,3 +358,55 @@ Return ONLY raw JSON:
 }`, 0.7);
   return safeParseJSON(raw);
 }
+
+export async function fetchVoiceOpener(topic, apiKey) {
+  const raw = await groqAI(apiKey, `You are a friendly English conversation partner helping a Myanmar student practice English speaking.
+
+Start a short, natural conversation about: "${topic}"
+Say one opening question or statement (1-2 sentences max) to kick off the conversation.
+
+Return ONLY raw JSON:
+{
+  "opener_en": "Your friendly opening line in English (1-2 sentences)",
+  "opener_my": "မြန်မာဘာသာဖြင့် ဘာသာပြန်ချက်",
+  "suggested_replies": [
+    "Short natural reply the student could say (max 10 words)",
+    "Another option",
+    "Another option"
+  ]
+}
+
+Rules:
+- opener_en: casual, friendly, easy to understand (B1 level max)
+- suggested_replies: 3 short natural phrases, varied (e.g. agree / disagree / question)
+- Keep it conversational, not textbook`, 0.8, 512);
+  return safeParseJSON(raw);
+}
+
+export async function fetchVoiceReply(topic, history, userMessage, apiKey) {
+  const historyText = history.map(h => `${h.role === 'user' ? 'Student' : 'AI'}: ${h.text}`).join('\n');
+  const raw = await groqAI(apiKey, `You are a friendly English conversation partner talking with a Myanmar student about "${topic}".
+
+Conversation so far:
+${historyText || '(just started)'}
+Student just said: "${userMessage}"
+
+Respond naturally and keep the conversation going. Stay on topic. 1-3 sentences max.
+
+Return ONLY raw JSON:
+{
+  "reply_en": "Your natural conversational response in English",
+  "reply_my": "မြန်မာဘာသာဖြင့် ဘာသာပြန်ချက်",
+  "suggested_replies": [
+    "Short reply the student could say next (max 10 words)",
+    "Another option",
+    "Another option"
+  ]
+}
+
+Rules:
+- reply_en: natural, friendly, 1-3 sentences, B1-B2 level vocabulary
+- Ask a follow-up question to keep the conversation flowing
+- suggested_replies: 3 varied, natural short phrases the student could respond with`, 0.7, 512);
+  return safeParseJSON(raw);
+}

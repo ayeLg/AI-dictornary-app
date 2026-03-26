@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { fetchExplain, fetchWritingFeedback, fetchTranslateMY, fetchConversation, fetchStory } from '../lib/groq';
+import { useState, useRef, useEffect } from 'react';
+import { fetchExplain, fetchWritingFeedback, fetchTranslateMY, fetchConversation, fetchStory, fetchVoiceOpener, fetchVoiceReply } from '../lib/groq';
 
 /* ── Reading Section (EN↔MY) ─────────────────────────────────────── */
 function ReadingSection({ apiKey }) {
@@ -461,6 +461,209 @@ function StorySection({ apiKey }) {
   );
 }
 
+/* ── Voice Section ───────────────────────────────────────────────── */
+const VOICE_TOPICS = [
+  { key: 'travel',      icon: '✈️', label: 'Travel' },
+  { key: 'food',        icon: '🍜', label: 'Food' },
+  { key: 'movies',      icon: '🎬', label: 'Movies' },
+  { key: 'daily life',  icon: '🌅', label: 'Daily Life' },
+  { key: 'work/study',  icon: '💼', label: 'Work/Study' },
+  { key: 'hobbies',     icon: '🎮', label: 'Hobbies' },
+];
+
+function VoiceSection({ apiKey }) {
+  const [topic, setTopic] = useState('');
+  const [messages, setMessages] = useState([]);
+  const [started, setStarted] = useState(false);
+  const [listening, setListening] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [showMy, setShowMy] = useState(false);
+  const [suggestions, setSuggestions] = useState([]);
+  const [transcript, setTranscript] = useState('');
+  const recogRef = useRef(null);
+  const messagesEndRef = useRef(null);
+  const SR = typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, loading]);
+
+  const speak = (text) => {
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'en-US';
+    u.rate = 0.85;
+    window.speechSynthesis.speak(u);
+  };
+
+  const addMessage = (role, text_en, text_my) =>
+    setMessages(prev => [...prev, { role, text_en, text_my, id: Date.now() }]);
+
+  const startConversation = async () => {
+    setStarted(true);
+    setMessages([]);
+    setSuggestions([]);
+    setLoading(true);
+    try {
+      const data = await fetchVoiceOpener(topic, apiKey);
+      addMessage('ai', data.opener_en, data.opener_my);
+      setSuggestions(data.suggested_replies || []);
+      speak(data.opener_en);
+    } catch (e) { console.error(e); }
+    finally { setLoading(false); }
+  };
+
+  const sendMessage = async (text) => {
+    if (!text.trim() || loading) return;
+    addMessage('user', text, '');
+    setSuggestions([]);
+    setLoading(true);
+    try {
+      const history = messages.map(m => ({ role: m.role, text: m.text_en }));
+      const data = await fetchVoiceReply(topic, history, text, apiKey);
+      addMessage('ai', data.reply_en, data.reply_my);
+      setSuggestions(data.suggested_replies || []);
+      speak(data.reply_en);
+    } catch (e) { console.error(e); }
+    finally { setLoading(false); }
+  };
+
+  const toggleListen = () => {
+    if (listening) {
+      recogRef.current?.stop();
+      setListening(false);
+      return;
+    }
+    if (!SR) return;
+    const recognition = new SR();
+    recognition.lang = 'en-US';
+    recognition.interimResults = false;
+    recognition.continuous = false;
+    recogRef.current = recognition;
+    recognition.onresult = (e) => {
+      const text = e.results[0][0].transcript;
+      setTranscript(text);
+      setListening(false);
+      sendMessage(text);
+    };
+    recognition.onerror = () => setListening(false);
+    recognition.onend = () => setListening(false);
+    recognition.start();
+    setListening(true);
+    setTranscript('');
+    window.speechSynthesis.cancel();
+  };
+
+  const reset = () => {
+    setStarted(false);
+    setMessages([]);
+    setSuggestions([]);
+    setTranscript('');
+    setListening(false);
+    recogRef.current?.stop();
+    window.speechSynthesis.cancel();
+  };
+
+  if (!started) {
+    return (
+      <div style={{padding:'16px 20px'}}>
+        <div style={{fontFamily:'var(--font-my)', fontSize:13, color:'var(--text2)', marginBottom:12}}>
+          Topic ရွေးပါ → AI နဲ့ English conversation လေ့ကျင့်ပါ 🎙️
+        </div>
+        <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8, marginBottom:14}}>
+          {VOICE_TOPICS.map(t => (
+            <button key={t.key} onClick={() => setTopic(t.key)}
+              style={{padding:'10px 6px', borderRadius:10, border:`1px solid ${topic === t.key ? 'var(--accent2)' : 'var(--border)'}`, background: topic === t.key ? 'var(--accent-bg)' : 'var(--card)', cursor:'pointer', textAlign:'center'}}>
+              <div style={{fontSize:20, marginBottom:2}}>{t.icon}</div>
+              <div style={{fontSize:11, fontWeight:600, color: topic === t.key ? 'var(--accent2)' : 'var(--text)'}}>{t.label}</div>
+            </button>
+          ))}
+        </div>
+        {!SR && (
+          <div style={{background:'#ff6b6b22', border:'1px solid #ff6b6b44', borderRadius:8, padding:'10px 12px', marginBottom:12, fontSize:12, color:'#ff9090', fontFamily:'var(--font-my)'}}>
+            ⚠️ Voice input သည် ဤ browser မှ support မလုပ်ပါ။ Chrome (Android/Desktop) ကို သုံးပါ။
+          </div>
+        )}
+        <button className="btn-primary" onClick={startConversation} disabled={!topic || !apiKey} style={{width:'100%'}}>
+          🎙️ Start Conversation
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{padding:'16px 20px', display:'flex', flexDirection:'column', height:'100%'}}>
+      {/* Header */}
+      <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10}}>
+        <div style={{fontSize:12, color:'var(--text3)'}}>
+          Topic: <span style={{color:'var(--gold)', fontWeight:600}}>{topic}</span>
+        </div>
+        <div style={{display:'flex', gap:6}}>
+          <button onClick={() => setShowMy(v => !v)} className="dir-toggle-btn" style={{fontSize:11, padding:'4px 10px'}}>
+            {showMy ? '🙈 MY' : '👁️ MY'}
+          </button>
+          <button onClick={reset} className="dir-toggle-btn" style={{fontSize:11, padding:'4px 10px'}}>↩ Reset</button>
+        </div>
+      </div>
+
+      {/* Messages */}
+      <div className="voice-messages">
+        {messages.map(m => (
+          <div key={m.id} className={`vbubble-wrap ${m.role}`}>
+            <div className={`vbubble ${m.role}`}>
+              <div style={{fontSize:14, lineHeight:1.6}}>{m.text_en}</div>
+              {showMy && m.text_my && (
+                <div style={{fontFamily:'var(--font-my)', fontSize:12, color:'var(--text3)', marginTop:5, paddingTop:5, borderTop:'1px solid rgba(255,255,255,0.08)'}}>
+                  {m.text_my}
+                </div>
+              )}
+              {m.role === 'ai' && (
+                <button onClick={() => speak(m.text_en)} style={{background:'none', border:'none', cursor:'pointer', fontSize:14, padding:'4px 0 0', color:'var(--text3)', display:'block'}}>🔊</button>
+              )}
+            </div>
+          </div>
+        ))}
+        {loading && (
+          <div className="vbubble-wrap ai">
+            <div className="vbubble ai" style={{fontSize:18, letterSpacing:3}}>···</div>
+          </div>
+        )}
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Suggested replies */}
+      {suggestions.length > 0 && !loading && (
+        <div style={{marginBottom:12}}>
+          <div style={{fontSize:10, color:'var(--text3)', fontWeight:700, textTransform:'uppercase', letterSpacing:1, marginBottom:6}}>💡 You could say:</div>
+          <div style={{display:'flex', flexWrap:'wrap', gap:6}}>
+            {suggestions.map((s, i) => (
+              <button key={i} onClick={() => { setTranscript(s); sendMessage(s); }}
+                style={{padding:'6px 12px', borderRadius:20, border:'1px solid var(--border)', background:'var(--card)', fontSize:12, color:'var(--text)', cursor:'pointer', textAlign:'left'}}>
+                "{s}"
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Mic button */}
+      <div style={{textAlign:'center', paddingTop:4}}>
+        {SR ? (
+          <>
+            <button onClick={toggleListen} disabled={loading} className={`mic-btn${listening ? ' mic-active' : ''}`}>
+              {listening ? '⏹' : '🎤'}
+            </button>
+            {listening && <div style={{fontSize:11, color:'#e74c3c', marginTop:6, fontFamily:'var(--font-my)'}}>နားထောင်နေသည်... ပြောပါ → ပြီးရင် ထပ်နှိပ်ပါ</div>}
+            {transcript && !listening && <div style={{fontSize:12, color:'var(--text3)', marginTop:6, fontStyle:'italic'}}>You: "{transcript}"</div>}
+          </>
+        ) : (
+          <div style={{fontSize:12, color:'var(--text3)', fontFamily:'var(--font-my)'}}>Voice input ကို Chrome browser တွင်သာ အသုံးပြုနိုင်သည်</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /* ── Main PracticeTab ────────────────────────────────────────────── */
 export default function PracticeTab({ apiKey }) {
   const [subTab, setSubTab] = useState('reading');
@@ -469,6 +672,7 @@ export default function PracticeTab({ apiKey }) {
     { key: 'writing',      icon: '✏️', label: 'Writing' },
     { key: 'conversation', icon: '💬', label: 'Chat' },
     { key: 'story',        icon: '📚', label: 'Story' },
+    { key: 'voice',        icon: '🎙️', label: 'Voice' },
   ];
 
   return (
@@ -484,6 +688,7 @@ export default function PracticeTab({ apiKey }) {
       {subTab === 'writing'      && <WritingSection apiKey={apiKey} />}
       {subTab === 'conversation' && <ConversationSection apiKey={apiKey} />}
       {subTab === 'story'        && <StorySection apiKey={apiKey} />}
+      {subTab === 'voice'        && <VoiceSection apiKey={apiKey} />}
     </div>
   );
 }
