@@ -130,7 +130,7 @@ export default function LearnTab({ saved, srsData, onSrsUpdate }) {
         <div style={{padding:'0 20px'}}>
           <FlashCard
             word={card.word}
-            meaning={card.myanmar_meaning || card.english_meaning}
+            meaning={card.meanings?.[0]?.definitions?.[0]?.definition_my || card.myanmar_meaning || card.english_meaning}
             isFlipped={isFlipped}
             onClick={handleFlip}
           />
@@ -145,10 +145,10 @@ export default function LearnTab({ saved, srsData, onSrsUpdate }) {
             <button className="learn-btn-know" onClick={() => handleAnswer(true)}>✓ Know it</button>
           </div>
         )}
-        {card.english_meaning && isFlipped && (
+        {isFlipped && (card.meanings?.[0]?.definitions?.[0]?.definition_en || card.english_meaning) && (
           <div style={{margin:'0 20px', padding:'10px 14px', background:'var(--card)', border:'1px solid var(--border)', borderRadius:10}}>
             <div style={{fontSize:11, color:'var(--text3)', fontWeight:700, textTransform:'uppercase', letterSpacing:1, marginBottom:4}}>English</div>
-            <div style={{fontSize:13, color:'var(--text2)'}}>{card.english_meaning}</div>
+            <div style={{fontSize:13, color:'var(--text2)'}}>{card.meanings?.[0]?.definitions?.[0]?.definition_en || card.english_meaning}</div>
           </div>
         )}
       </div>
