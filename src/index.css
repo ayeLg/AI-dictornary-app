@@ -653,6 +653,67 @@ body::after {
   50%       { box-shadow: 0 0 0 10px rgba(231,76,60,0); }
 }
 
+/* ── Daily Word Tooltip ─────────────────── */
+.daily-word-mark {
+  background: rgba(196,160,100,0.18);
+  color: var(--accent2);
+  border-radius: 3px;
+  padding: 0 2px;
+  cursor: pointer;
+  border-bottom: 1px dashed var(--accent2);
+  transition: background 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.daily-word-mark.active,
+.daily-word-mark:hover {
+  background: rgba(196,160,100,0.35);
+}
+.word-tooltip-box {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--card2, #2a2a2a);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 7px 10px;
+  min-width: 120px;
+  max-width: 200px;
+  z-index: 100;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+  white-space: normal;
+  pointer-events: auto;
+}
+.word-tooltip-box::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: var(--border);
+}
+.word-tooltip-word {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--gold);
+  margin-bottom: 3px;
+}
+.word-tooltip-my {
+  display: block;
+  font-family: var(--font-my);
+  font-size: 12px;
+  color: var(--text2);
+  line-height: 1.5;
+}
+.word-tooltip-none {
+  display: block;
+  font-family: var(--font-my);
+  font-size: 11px;
+  color: var(--text3);
+}
+
 /* ── V2: Flashcard ──────────────────────── */
 .flashcard-scene {
   width: 100%; perspective: 900px;

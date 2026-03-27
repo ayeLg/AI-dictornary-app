@@ -1,25 +1,73 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { CONTEXTS, fetchDaily, fetchDailyWordList } from '../lib/groq';
 import { lsGet, lsSet } from '../lib/storage';
 
 /* ── Sentence helpers ──────────────────────────────────────────── */
-function SentenceItem({ sentence, wordsUsed }) {
+function WordTooltip({ word, meaning, onClose }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) onClose(); };
+    document.addEventListener('mousedown', handler);
+    document.addEventListener('touchstart', handler);
+    return () => { document.removeEventListener('mousedown', handler); document.removeEventListener('touchstart', handler); };
+  }, [onClose]);
+  return (
+    <span ref={ref} className="word-tooltip-box">
+      <span className="word-tooltip-word">{word}</span>
+      {meaning
+        ? <span className="word-tooltip-my">{meaning}</span>
+        : <span className="word-tooltip-none">meaning မရှိသေးပါ</span>}
+    </span>
+  );
+}
+
+function SentenceItem({ sentence, wordsUsed, saved }) {
   const [copied, setCopied] = useState(false);
+  const [activeWord, setActiveWord] = useState(null);
+
   const copy = () => {
     navigator.clipboard?.writeText(sentence).then(() => {
       setCopied(true); setTimeout(() => setCopied(false), 2000);
     });
   };
+
+  const getMeaning = (word) => {
+    const w = saved?.find(s => s.word.toLowerCase() === word.toLowerCase());
+    if (!w) return null;
+    return w.meanings?.[0]?.definitions?.[0]?.definition_my || w.myanmar_meaning || null;
+  };
+
+  const handleWordClick = (e, word) => {
+    e.stopPropagation();
+    setActiveWord(prev => prev === word ? null : word);
+  };
+
   const renderText = () => {
     if (!wordsUsed?.length) return sentence;
     const regex = new RegExp(`(${wordsUsed.map(w => w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).join('|')})`, 'gi');
-    return sentence.split(regex).map((p, i) =>
-      wordsUsed.some(w => w.toLowerCase() === p.toLowerCase())
-        ? <mark key={i}>{p}</mark> : p
-    );
+    return sentence.split(regex).map((p, i) => {
+      if (!wordsUsed.some(w => w.toLowerCase() === p.toLowerCase())) return p;
+      const isActive = activeWord === p.toLowerCase();
+      return (
+        <span key={i} style={{ position: 'relative', display: 'inline' }}>
+          <mark
+            className={`daily-word-mark${isActive ? ' active' : ''}`}
+            onClick={(e) => handleWordClick(e, p.toLowerCase())}
+          >{p}</mark>
+          {isActive && (
+            <WordTooltip
+              word={p}
+              meaning={getMeaning(p)}
+              onClose={() => setActiveWord(null)}
+            />
+          )}
+        </span>
+      );
+    });
   };
+
   return (
-    <div className="sentence-item">
+    <div className="sentence-item" onClick={() => setActiveWord(null)}>
       <div className="sentence-text">{renderText()}</div>
       <button className={`copy-btn${copied ? ' copied' : ''}`} onClick={copy}>{copied ? '✓' : '⎘'}</button>
     </div>
@@ -204,7 +252,7 @@ export default function DailyTab({ apiKey, saved }) {
               <span className="context-icon">{ctx.icon}</span>
               <span className="context-title">{ctx.label}</span>
             </div>
-            {items.map((s, i) => <SentenceItem key={i} sentence={s.sentence} wordsUsed={s.words_used} />)}
+            {items.map((s, i) => <SentenceItem key={i} sentence={s.sentence} wordsUsed={s.words_used} saved={saved} />)}
           </div>
         );
       })}
