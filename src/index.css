@@ -670,7 +670,7 @@ body::after {
 }
 .word-tooltip-box {
   position: absolute;
-  bottom: calc(100% + 6px);
+  top: calc(100% + 5px);
   left: 50%;
   transform: translateX(-50%);
   background: var(--card2, #2a2a2a);
@@ -687,11 +687,11 @@ body::after {
 .word-tooltip-box::after {
   content: '';
   position: absolute;
-  top: 100%;
+  bottom: 100%;
   left: 50%;
   transform: translateX(-50%);
   border: 5px solid transparent;
-  border-top-color: var(--border);
+  border-bottom-color: var(--border);
 }
 .word-tooltip-word {
   display: block;
