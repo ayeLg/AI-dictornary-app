@@ -1,29 +1,53 @@
 import { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { CONTEXTS, fetchDaily, fetchDailyWordList } from '../lib/groq';
 import { lsGet, lsSet } from '../lib/storage';
 
 /* ── Sentence helpers ──────────────────────────────────────────── */
-function WordTooltip({ word, meaning, onClose }) {
+function WordTooltip({ word, meaning, anchorRect, onClose }) {
   const ref = useRef(null);
+  const [style, setStyle] = useState({ position: 'fixed', visibility: 'hidden', top: 0, left: 0, zIndex: 9999 });
+
+  // Position after render so we know tooltip dimensions
   useEffect(() => {
-    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) onClose(); };
-    document.addEventListener('mousedown', handler);
-    document.addEventListener('touchstart', handler);
-    return () => { document.removeEventListener('mousedown', handler); document.removeEventListener('touchstart', handler); };
+    if (!ref.current || !anchorRect) return;
+    const tip = ref.current.getBoundingClientRect();
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const PAD = 8;
+
+    // Prefer below; flip above if not enough space
+    let top = anchorRect.bottom + 6;
+    if (top + tip.height + PAD > vh) top = anchorRect.top - tip.height - 6;
+
+    // Center horizontally on anchor, then clamp to viewport
+    let left = anchorRect.left + anchorRect.width / 2 - tip.width / 2;
+    left = Math.max(PAD, Math.min(left, vw - tip.width - PAD));
+
+    setStyle({ position: 'fixed', top, left, zIndex: 9999, visibility: 'visible' });
+  }, [anchorRect]);
+
+  useEffect(() => {
+    const close = (e) => { if (ref.current && !ref.current.contains(e.target)) onClose(); };
+    document.addEventListener('mousedown', close);
+    document.addEventListener('touchstart', close);
+    return () => { document.removeEventListener('mousedown', close); document.removeEventListener('touchstart', close); };
   }, [onClose]);
-  return (
-    <span ref={ref} className="word-tooltip-box">
+
+  return createPortal(
+    <div ref={ref} className="word-tooltip-box" style={style}>
       <span className="word-tooltip-word">{word}</span>
       {meaning
         ? <span className="word-tooltip-my">{meaning}</span>
         : <span className="word-tooltip-none">meaning မရှိသေးပါ</span>}
-    </span>
+    </div>,
+    document.body
   );
 }
 
 function SentenceItem({ sentence, wordsUsed, saved }) {
   const [copied, setCopied] = useState(false);
-  const [activeWord, setActiveWord] = useState(null);
+  const [tooltip, setTooltip] = useState(null); // { word, rect, meaning }
 
   const copy = () => {
     navigator.clipboard?.writeText(sentence).then(() => {
@@ -39,7 +63,8 @@ function SentenceItem({ sentence, wordsUsed, saved }) {
 
   const handleWordClick = (e, word) => {
     e.stopPropagation();
-    setActiveWord(prev => prev === word ? null : word);
+    if (tooltip?.word === word) { setTooltip(null); return; }
+    setTooltip({ word, rect: e.currentTarget.getBoundingClientRect(), meaning: getMeaning(word) });
   };
 
   const renderText = () => {
@@ -47,29 +72,28 @@ function SentenceItem({ sentence, wordsUsed, saved }) {
     const regex = new RegExp(`(${wordsUsed.map(w => w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).join('|')})`, 'gi');
     return sentence.split(regex).map((p, i) => {
       if (!wordsUsed.some(w => w.toLowerCase() === p.toLowerCase())) return p;
-      const isActive = activeWord === p.toLowerCase();
       return (
-        <span key={i} style={{ position: 'relative', display: 'inline' }}>
-          <mark
-            className={`daily-word-mark${isActive ? ' active' : ''}`}
-            onClick={(e) => handleWordClick(e, p.toLowerCase())}
-          >{p}</mark>
-          {isActive && (
-            <WordTooltip
-              word={p}
-              meaning={getMeaning(p)}
-              onClose={() => setActiveWord(null)}
-            />
-          )}
-        </span>
+        <mark
+          key={i}
+          className={`daily-word-mark${tooltip?.word === p.toLowerCase() ? ' active' : ''}`}
+          onClick={(e) => handleWordClick(e, p.toLowerCase())}
+        >{p}</mark>
       );
     });
   };
 
   return (
-    <div className="sentence-item" onClick={() => setActiveWord(null)}>
+    <div className="sentence-item" onClick={() => setTooltip(null)}>
       <div className="sentence-text">{renderText()}</div>
       <button className={`copy-btn${copied ? ' copied' : ''}`} onClick={copy}>{copied ? '✓' : '⎘'}</button>
+      {tooltip && (
+        <WordTooltip
+          word={tooltip.word}
+          meaning={tooltip.meaning}
+          anchorRect={tooltip.rect}
+          onClose={() => setTooltip(null)}
+        />
+      )}
     </div>
   );
 }

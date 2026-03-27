@@ -669,29 +669,15 @@ body::after {
   background: rgba(196,160,100,0.35);
 }
 .word-tooltip-box {
-  position: absolute;
-  top: calc(100% + 5px);
-  left: 50%;
-  transform: translateX(-50%);
-  background: var(--card2, #2a2a2a);
+  background: #1e1e1e;
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 7px 10px;
+  padding: 8px 12px;
   min-width: 120px;
-  max-width: 200px;
-  z-index: 100;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+  max-width: 220px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.5);
   white-space: normal;
   pointer-events: auto;
-}
-.word-tooltip-box::after {
-  content: '';
-  position: absolute;
-  bottom: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  border: 5px solid transparent;
-  border-bottom-color: var(--border);
 }
 .word-tooltip-word {
   display: block;
