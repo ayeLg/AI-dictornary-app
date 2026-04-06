@@ -30,6 +30,9 @@ export const CONTEXTS = [
 let _orKey = '';
 export function setOrKey(key) { _orKey = key || ''; }
 
+const FAST_MODEL = 'llama-3.1-8b-instant';   // dictionary lookups — ~5× faster
+const FULL_MODEL = 'llama-3.3-70b-versatile'; // story, conversation, quiz
+
 async function callAPI(url, apiKey, model, prompt, temp, maxTokens, extraHeaders = {}) {
   const res = await fetch(url, {
     method: 'POST',
@@ -52,23 +55,21 @@ async function callAPI(url, apiKey, model, prompt, temp, maxTokens, extraHeaders
   return (data.choices?.[0]?.message?.content || '').trim();
 }
 
-export async function groqAI(apiKey, prompt, temp = 0.1, maxTokens = 2048) {
+export async function groqAI(apiKey, prompt, temp = 0.1, maxTokens = 2048, fast = false) {
+  const model = fast ? FAST_MODEL : FULL_MODEL;
   try {
     return await callAPI(
       'https://api.groq.com/openai/v1/chat/completions',
-      apiKey,
-      'llama-3.3-70b-versatile',
-      prompt, temp, maxTokens
+      apiKey, model, prompt, temp, maxTokens
     );
   } catch (e) {
     // Auto-fallback to OpenRouter on rate-limit or server error
-    if (_orKey && (e.status === 429 || e.status === 503 || e.status === 503 || /rate.?limit|quota/i.test(e.message))) {
+    if (_orKey && (e.status === 429 || e.status === 503 || /rate.?limit|quota/i.test(e.message))) {
       console.info('⚡ Groq limit hit — falling back to OpenRouter');
+      const orModel = fast ? 'meta-llama/llama-3.1-8b-instruct' : 'meta-llama/llama-3.3-70b-instruct';
       return await callAPI(
         'https://openrouter.ai/api/v1/chat/completions',
-        _orKey,
-        'meta-llama/llama-3.3-70b-instruct',
-        prompt, temp, maxTokens,
+        _orKey, orModel, prompt, temp, maxTokens,
         { 'HTTP-Referer': 'https://ayeLg.github.io', 'X-Title': 'Mingalar Dictionary' }
       );
     }
@@ -141,7 +142,7 @@ OTHER RULES:
 - synonyms: 2-4 synonyms as OBJECTS {word, nuance_en, nuance_my, use_when}. nuance_en = what specifically makes this synonym different from the main word (intensity, formality, connotation, typical context). use_when = concrete situation where this synonym is more appropriate than the main word.
 - antonyms: simple string array
 - related_words: 4 worth learning next
-- Return raw JSON only`, 0.15, 8000);
+- Return raw JSON only`, 0.15, 4000, true);
   return safeParseJSON(raw);
 }
 
@@ -192,7 +193,7 @@ Return JSON object with a "questions" array:
 {"questions":[
   {"type":"A","word":"drench","question_text":"What is the Myanmar meaning of 'drench'?","correct":"ရေစိုအောင်","options":["ရေစိုအောင်","ပျော်ရွှင်","မြန်မြန်","ကြောက်"],"explanation":"Drench means to soak completely."},
   {"type":"B","word":"timid","question_text":"What is the English word for 'ရဲရင့်မှုမရှိသော'?","correct":"timid","options":["timid","brave","strong","reckless"],"explanation":"Timid means lacking courage."}
-]}`, 0.6, 3000);
+]}`, 0.6, 3000, true);
 
   return safeParseJSON(raw).questions;
 }
@@ -364,7 +365,7 @@ Rules:
 - myanmar_meaning: concise Myanmar translation (5 words max)
 - example_en: short natural sentence (max 12 words)
 - example_my: Myanmar translation of the example
-- Return raw JSON only`, 0.7, 3000);
+- Return raw JSON only`, 0.7, 3000, true);
   return safeParseJSON(raw).words;
 }
 
