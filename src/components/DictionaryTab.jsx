@@ -180,8 +180,9 @@ export default function DictionaryTab({ apiKey, saved, onSaveToggle, pendingSear
       {result && !loading && (
         <>
           {usedAPI && (
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
+            <div style={{ textAlign: 'right', marginBottom: 4, paddingRight: 2 }}>
               <span style={{
+                display: 'inline-block',
                 fontSize: 10, fontWeight: 600, letterSpacing: 0.5,
                 padding: '3px 8px', borderRadius: 20,
                 background: usedAPI === 'groq' ? 'rgba(99,102,241,0.12)' : 'rgba(16,185,129,0.12)',
