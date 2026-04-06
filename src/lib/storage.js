@@ -1,5 +1,6 @@
 export const KEYS = {
   API:       'ming_api',
+  OR_KEY:    'ming_or_api',
   HISTORY:   'ming_hist',
   SAVED:     'ming_saved',
   QUIZ_HIST: 'ming_quiz_hist',

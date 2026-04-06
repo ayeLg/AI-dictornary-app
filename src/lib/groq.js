@@ -27,16 +27,15 @@ export const CONTEXTS = [
   { key: 'evening', icon: '🌙', label: 'Evening' },
 ];
 
-export async function groqAI(apiKey, prompt, temp = 0.1, maxTokens = 2048) {
-  const url = `https://api.groq.com/openai/v1/chat/completions`;
+let _orKey = '';
+export function setOrKey(key) { _orKey = key || ''; }
+
+async function callAPI(url, apiKey, model, prompt, temp, maxTokens, extraHeaders = {}) {
   const res = await fetch(url, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
-    },
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}`, ...extraHeaders },
     body: JSON.stringify({
-      model: 'llama-3.3-70b-versatile',
+      model,
       messages: [{ role: 'user', content: prompt }],
       temperature: temp,
       max_tokens: maxTokens,
@@ -45,10 +44,36 @@ export async function groqAI(apiKey, prompt, temp = 0.1, maxTokens = 2048) {
   });
   if (!res.ok) {
     const e = await res.json().catch(() => ({}));
-    throw new Error(e.error?.message || `API Error ${res.status}`);
+    const err = new Error(e.error?.message || `API Error ${res.status}`);
+    err.status = res.status;
+    throw err;
   }
   const data = await res.json();
   return (data.choices?.[0]?.message?.content || '').trim();
+}
+
+export async function groqAI(apiKey, prompt, temp = 0.1, maxTokens = 2048) {
+  try {
+    return await callAPI(
+      'https://api.groq.com/openai/v1/chat/completions',
+      apiKey,
+      'llama-3.3-70b-versatile',
+      prompt, temp, maxTokens
+    );
+  } catch (e) {
+    // Auto-fallback to OpenRouter on rate-limit or server error
+    if (_orKey && (e.status === 429 || e.status === 503 || e.status === 503 || /rate.?limit|quota/i.test(e.message))) {
+      console.info('⚡ Groq limit hit — falling back to OpenRouter');
+      return await callAPI(
+        'https://openrouter.ai/api/v1/chat/completions',
+        _orKey,
+        'meta-llama/llama-3.3-70b-instruct',
+        prompt, temp, maxTokens,
+        { 'HTTP-Referer': 'https://ayeLg.github.io', 'X-Title': 'Mingalar Dictionary' }
+      );
+    }
+    throw e;
+  }
 }
 
 export async function fetchWord(word, apiKey) {

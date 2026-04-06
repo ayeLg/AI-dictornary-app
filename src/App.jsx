@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { KEYS, lsGet, lsSet } from './lib/storage';
+import { setOrKey } from './lib/groq';
 import {
   fbAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut,
   cloudLoad, cloudSave,
@@ -18,6 +19,7 @@ const TODAY = () => new Date().toISOString().slice(0, 10);
 export default function App() {
   const [activeTab, setActiveTab]           = useState('dictionary');
   const [apiKey, setApiKey]                 = useState(() => lsGet(KEYS.API, ''));
+  const [orKey, setOrKeyState]              = useState(() => lsGet(KEYS.OR_KEY, ''));
   const [showKeyModal, setShowKeyModal]     = useState(false);
   const [saved, setSaved]                   = useState(() => lsGet(KEYS.SAVED, []));
   const [srsData, setSrsData]               = useState(() => lsGet(KEYS.SRS, {}));
@@ -78,6 +80,14 @@ export default function App() {
       }
     });
   }, []);
+
+  // Keep module-level OR key in sync
+  useEffect(() => { setOrKey(orKey); }, [orKey]);
+
+  const handleSaveOrKey = (key) => {
+    lsSet(KEYS.OR_KEY, key);
+    setOrKeyState(key);
+  };
 
   const needsKey = authReady && !user && !apiKey && activeTab === 'dictionary';
 
@@ -181,6 +191,7 @@ export default function App() {
         {activeTab === 'profile' && (
           <ProfileTab
             apiKey={apiKey} saved={saved}
+            orKey={orKey} onSaveOrKey={handleSaveOrKey}
             onEditKey={() => setShowKeyModal(true)}
             onRemoveWord={handleRemoveWord}
             onSaveToggle={handleSaveToggle}

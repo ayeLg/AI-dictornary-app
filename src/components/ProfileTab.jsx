@@ -9,11 +9,13 @@ function getMasteryLevel(srs) {
   return 'Familiar';
 }
 
-export default function ProfileTab({ apiKey, saved, onEditKey, onRemoveWord, onSwitchTab, onSaveToggle, user, syncing, onLogin, onLogout, srsData = {}, streak = { lastDate: '', count: 0 } }) {
+export default function ProfileTab({ apiKey, saved, orKey, onSaveOrKey, onEditKey, onRemoveWord, onSwitchTab, onSaveToggle, user, syncing, onLogin, onLogout, srsData = {}, streak = { lastDate: '', count: 0 } }) {
   const [quizHist, setQuizHist] = useState(() => lsGet(KEYS.QUIZ_HIST, []));
   const [searchHist, setSearchHist] = useState(() => lsGet(KEYS.HISTORY, []));
   const [selectedWord, setSelectedWord] = useState(null);
   const [wordSearch, setWordSearch] = useState('');
+  const [orInput, setOrInput] = useState(orKey || '');
+  const [orSaved, setOrSaved] = useState(false);
   const freq = lsGet(KEYS.FREQ, {});
 
   const totalSearches = Object.values(freq).reduce((a, b) => a + b, 0);
@@ -26,6 +28,12 @@ export default function ProfileTab({ apiKey, saved, onEditKey, onRemoveWord, onS
     : 'မထည့်ရသေးပါ';
 
   const clearQuizHist = () => { lsSet(KEYS.QUIZ_HIST, []); setQuizHist([]); };
+
+  const saveOrKey = () => {
+    onSaveOrKey(orInput.trim());
+    setOrSaved(true);
+    setTimeout(() => setOrSaved(false), 2000);
+  };
 
   const masteryColors = { New: 'var(--text3)', Learning: 'var(--gold)', Familiar: 'var(--accent2)', Mastered: 'var(--green)' };
 
@@ -140,7 +148,7 @@ export default function ProfileTab({ apiKey, saved, onEditKey, onRemoveWord, onS
         </div>
       )}
 
-      {/* API Key */}
+      {/* API Keys */}
       <div className="panel-card">
         <div className="panel-row">
           <div>
@@ -148,6 +156,38 @@ export default function ProfileTab({ apiKey, saved, onEditKey, onRemoveWord, onS
             <div className="panel-row-value">{masked}</div>
           </div>
           <button className="icon-btn" onClick={onEditKey}>Edit</button>
+        </div>
+        <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12, marginTop: 4 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>
+            OpenRouter API Key
+            <span style={{ marginLeft: 6, fontSize: 10, color: 'var(--accent2)', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>
+              (Groq limit ပြည့်ရင် auto-fallback)
+            </span>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <input
+              className="modal-input"
+              type="password"
+              placeholder="sk-or-..."
+              value={orInput}
+              onChange={e => setOrInput(e.target.value)}
+              style={{ fontSize: 13, padding: '8px 12px', flex: 1 }}
+            />
+            <button
+              className="icon-btn"
+              onClick={saveOrKey}
+              disabled={orInput.trim() === (orKey || '')}
+              style={{ flexShrink: 0, color: orSaved ? 'var(--green)' : undefined }}
+            >
+              {orSaved ? '✓' : 'Save'}
+            </button>
+          </div>
+          {!orKey && (
+            <a href="https://openrouter.ai/keys" target="_blank" rel="noreferrer"
+              style={{ fontSize: 11, color: 'var(--accent2)', marginTop: 6, display: 'block' }}>
+              → OpenRouter မှာ API Key ရယူမည် (Free tier ရှိ)
+            </a>
+          )}
         </div>
       </div>
 
