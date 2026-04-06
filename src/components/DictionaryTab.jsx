@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { KEYS, lsGet, lsSet } from '../lib/storage';
-import { fetchWord } from '../lib/groq';
+import { fetchWord, getLastUsedAPI } from '../lib/groq';
 import WordResult from './WordResult';
 
 function SkeletonCard() {
@@ -48,6 +48,7 @@ export default function DictionaryTab({ apiKey, saved, onSaveToggle, pendingSear
   const [result, setResult]       = useState(null);
   const [loading, setLoading]     = useState(false);
   const [error, setError]         = useState(null);
+  const [usedAPI, setUsedAPI]     = useState(null);
   const [history, setHistory]     = useState(() => lsGet(KEYS.HISTORY, []));
   // Phase 3: autocomplete state
   const [sugg, setSugg]           = useState([]);
@@ -88,6 +89,7 @@ export default function DictionaryTab({ apiKey, saved, onSaveToggle, pendingSear
     try {
       const data = await fetchWord(w, apiKey);
       setResult(data);
+      setUsedAPI(getLastUsedAPI());
       // Phase 3: track search frequency
       const freq = lsGet(KEYS.FREQ, {});
       freq[data.word] = (freq[data.word] || 0) + 1;
@@ -176,19 +178,32 @@ export default function DictionaryTab({ apiKey, saved, onSaveToggle, pendingSear
       )}
 
       {result && !loading && (
-        <WordResult
-          result={result} isSaved={isSaved}
-          onSave={() => onSaveToggle(result)} onChipClick={doSearch}
-          onWordUpdate={(updated) => {
-            setResult(updated);
-            // Update localStorage cache so edits persist
-            const cache = lsGet('ming_cache', {});
-            cache[updated.word?.toLowerCase()] = updated;
-            lsSet('ming_cache', cache);
-            // If saved, update saved list too
-            onSaveToggle(updated, true);
-          }}
-        />
+        <>
+          {usedAPI && (
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
+              <span style={{
+                fontSize: 10, fontWeight: 600, letterSpacing: 0.5,
+                padding: '3px 8px', borderRadius: 20,
+                background: usedAPI === 'groq' ? 'rgba(99,102,241,0.12)' : 'rgba(16,185,129,0.12)',
+                color: usedAPI === 'groq' ? '#818cf8' : '#34d399',
+                border: `1px solid ${usedAPI === 'groq' ? '#818cf844' : '#34d39944'}`,
+              }}>
+                {usedAPI === 'groq' ? '⚡ Groq' : '🔀 OpenRouter'}
+              </span>
+            </div>
+          )}
+          <WordResult
+            result={result} isSaved={isSaved}
+            onSave={() => onSaveToggle(result)} onChipClick={doSearch}
+            onWordUpdate={(updated) => {
+              setResult(updated);
+              const cache = lsGet('ming_cache', {});
+              cache[updated.word?.toLowerCase()] = updated;
+              lsSet('ming_cache', cache);
+              onSaveToggle(updated, true);
+            }}
+          />
+        </>
       )}
 
       {!result && !loading && !error && history.length === 0 && !saved.length && (

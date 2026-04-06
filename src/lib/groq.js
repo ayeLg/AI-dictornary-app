@@ -30,6 +30,9 @@ export const CONTEXTS = [
 let _orKey = '';
 export function setOrKey(key) { _orKey = key || ''; }
 
+let _lastAPI = 'groq';
+export function getLastUsedAPI() { return _lastAPI; }
+
 const FAST_MODEL = 'llama-3.1-8b-instant';   // dictionary lookups — ~5× faster
 const FULL_MODEL = 'llama-3.3-70b-versatile'; // story, conversation, quiz
 
@@ -58,20 +61,24 @@ async function callAPI(url, apiKey, model, prompt, temp, maxTokens, extraHeaders
 export async function groqAI(apiKey, prompt, temp = 0.1, maxTokens = 2048, fast = false) {
   const model = fast ? FAST_MODEL : FULL_MODEL;
   try {
-    return await callAPI(
+    const result = await callAPI(
       'https://api.groq.com/openai/v1/chat/completions',
       apiKey, model, prompt, temp, maxTokens
     );
+    _lastAPI = 'groq';
+    return result;
   } catch (e) {
     // Auto-fallback to OpenRouter on rate-limit or server error
     if (_orKey && (e.status === 429 || e.status === 503 || /rate.?limit|quota/i.test(e.message))) {
       console.info('⚡ Groq limit hit — falling back to OpenRouter');
       const orModel = fast ? 'meta-llama/llama-3.1-8b-instruct' : 'meta-llama/llama-3.3-70b-instruct';
-      return await callAPI(
+      const result = await callAPI(
         'https://openrouter.ai/api/v1/chat/completions',
         _orKey, orModel, prompt, temp, maxTokens,
         { 'HTTP-Referer': 'https://ayeLg.github.io', 'X-Title': 'Mingalar Dictionary' }
       );
+      _lastAPI = 'openrouter';
+      return result;
     }
     throw e;
   }
