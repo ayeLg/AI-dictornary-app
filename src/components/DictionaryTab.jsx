@@ -180,7 +180,7 @@ export default function DictionaryTab({ apiKey, saved, onSaveToggle, pendingSear
       {result && !loading && (
         <>
           {usedAPI && (
-            <div style={{ textAlign: 'right', marginBottom: 4, paddingRight: 2 }}>
+            <div style={{ textAlign: 'right', marginBottom: 4, paddingRight: 18 }}>
               <span style={{
                 display: 'inline-block',
                 fontSize: 10, fontWeight: 600, letterSpacing: 0.5,
