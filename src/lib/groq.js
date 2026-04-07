@@ -85,6 +85,21 @@ export async function groqAI(apiKey, prompt, temp = 0.1, maxTokens = 2048, fast 
 }
 
 export async function fetchWord(word, apiKey) {
+  // Merge duplicate POS entries (safety net for model mistakes)
+  function mergeDupePOS(meanings) {
+    if (!Array.isArray(meanings)) return meanings;
+    const map = new Map();
+    for (const m of meanings) {
+      const key = (m.pos || '').toLowerCase();
+      if (map.has(key)) {
+        map.get(key).definitions = [...map.get(key).definitions, ...(m.definitions || [])];
+      } else {
+        map.set(key, { ...m, definitions: [...(m.definitions || [])] });
+      }
+    }
+    return Array.from(map.values());
+  }
+
   const raw = await groqAI(apiKey, `You are a comprehensive English-Myanmar dictionary. Analyze "${word}" and return ONLY raw JSON (no markdown):
 
 {
@@ -131,6 +146,7 @@ export async function fetchWord(word, apiKey) {
 }
 
 DEFINITION RULES (most important):
+- CRITICAL: Each POS (verb/noun/adjective etc) must appear EXACTLY ONCE in the meanings array. Group ALL definitions for the same POS under one entry. NEVER repeat the same pos value.
 - Cover ALL major distinct senses and ALL parts of speech the word has.
 - For prepositions (in/on/at/by/for/with etc): include AT LEAST 5-8 definitions covering: place/location, time, state/condition, manner, purpose, cause, agent, membership — whichever apply.
 - For conjunctions/adverbs with positional uses (beginning vs sentence-final): EACH position = its own definition. E.g. "tho" → def1: used at start/middle like "although"; def2: sentence-final informal tag "That's cool, tho."
@@ -150,7 +166,9 @@ OTHER RULES:
 - antonyms: simple string array
 - related_words: 4 worth learning next
 - Return raw JSON only`, 0.15, 4000, true);
-  return safeParseJSON(raw);
+  const parsed = safeParseJSON(raw);
+  if (parsed.meanings) parsed.meanings = mergeDupePOS(parsed.meanings);
+  return parsed;
 }
 
 // Weighted random pick: higher freq words appear more but not exclusively
