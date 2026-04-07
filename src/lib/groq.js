@@ -66,6 +66,10 @@ async function callAPI(url, apiKey, model, prompt, temp, maxTokens, extraHeaders
 
 export async function groqAI(apiKey, prompt, temp = 0.1, maxTokens = 2048, fast = false) {
   const model = fast ? FAST_MODEL : FULL_MODEL;
+  const OR_HEADERS = { 'HTTP-Referer': 'https://ayeLg.github.io', 'X-Title': 'Mingalar Dictionary' };
+  const OR_URL = 'https://openrouter.ai/api/v1/chat/completions';
+  const OR_FALLBACK = 'meta-llama/llama-3.1-8b-instruct:free'; // reliable fallback
+
   try {
     const result = await callAPI(
       'https://api.groq.com/openai/v1/chat/completions',
@@ -77,14 +81,21 @@ export async function groqAI(apiKey, prompt, temp = 0.1, maxTokens = 2048, fast 
     // Auto-fallback to OpenRouter on rate-limit or server error
     if (_orKey && (e.status === 429 || e.status === 503 || /rate.?limit|quota/i.test(e.message))) {
       console.info('⚡ Groq limit hit — falling back to OpenRouter');
-      const orModel = _orModel || (fast ? 'meta-llama/llama-3.1-8b-instruct' : 'meta-llama/llama-3.3-70b-instruct');
-      const result = await callAPI(
-        'https://openrouter.ai/api/v1/chat/completions',
-        _orKey, orModel, prompt, temp, maxTokens,
-        { 'HTTP-Referer': 'https://ayeLg.github.io', 'X-Title': 'Mingalar Dictionary' }
-      );
-      _lastAPI = 'openrouter';
-      return result;
+      const orModel = _orModel || (fast ? 'meta-llama/llama-3.1-8b-instruct:free' : 'meta-llama/llama-3.3-70b-instruct:free');
+      try {
+        const result = await callAPI(OR_URL, _orKey, orModel, prompt, temp, maxTokens, OR_HEADERS);
+        _lastAPI = 'openrouter';
+        return result;
+      } catch (orErr) {
+        // OR primary model failed — retry with reliable fallback model
+        if (orModel !== OR_FALLBACK) {
+          console.warn(`⚠️ OR model "${orModel}" failed, retrying with ${OR_FALLBACK}`);
+          const result = await callAPI(OR_URL, _orKey, OR_FALLBACK, prompt, temp, maxTokens, OR_HEADERS);
+          _lastAPI = 'openrouter';
+          return result;
+        }
+        throw orErr;
+      }
     }
     throw e;
   }
