@@ -15,7 +15,7 @@ const OR_MODELS = [
   { value: 'meta-llama/llama-3.1-8b-instruct:free', label: 'Llama 3.1 8B (Free)', desc: 'Fastest — free tier' },
   { value: 'google/gemma-3-27b-it:free', label: 'Gemma 3 27B (Free)', desc: 'Google — free tier' },
   { value: 'mistralai/mistral-7b-instruct:free', label: 'Mistral 7B (Free)', desc: 'Efficient — free tier' },
-  { value: 'deepseek/deepseek-r1:free', label: 'DeepSeek R1 (Free)', desc: 'Reasoning model — free' },
+  { value: 'deepseek/deepseek-chat-v3-0324:free', label: 'DeepSeek V3 (Free)', desc: 'DeepSeek chat — free tier' },
 ];
 
 export default function ProfileTab({ apiKey, saved, orKey, onSaveOrKey, orModel, onSaveOrModel, onEditKey, onRemoveWord, onSwitchTab, onSaveToggle, user, syncing, onLogin, onLogout, srsData = {}, streak = { lastDate: '', count: 0 } }) {

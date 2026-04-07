@@ -39,16 +39,20 @@ const FAST_MODEL = 'llama-3.1-8b-instant';   // dictionary lookups — ~5× fast
 const FULL_MODEL = 'llama-3.3-70b-versatile'; // story, conversation, quiz
 
 async function callAPI(url, apiKey, model, prompt, temp, maxTokens, extraHeaders = {}) {
+  const isOpenRouter = url.includes('openrouter');
+  const body = {
+    model,
+    messages: [{ role: 'user', content: prompt }],
+    temperature: temp,
+    max_tokens: maxTokens,
+  };
+  // Only Groq reliably supports json_object mode; OpenRouter models vary
+  if (!isOpenRouter) body.response_format = { type: 'json_object' };
+
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}`, ...extraHeaders },
-    body: JSON.stringify({
-      model,
-      messages: [{ role: 'user', content: prompt }],
-      temperature: temp,
-      max_tokens: maxTokens,
-      response_format: { type: 'json_object' },
-    }),
+    body: JSON.stringify(body),
   });
   if (!res.ok) {
     const e = await res.json().catch(() => ({}));
