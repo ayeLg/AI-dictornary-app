@@ -9,7 +9,16 @@ function getMasteryLevel(srs) {
   return 'Familiar';
 }
 
-export default function ProfileTab({ apiKey, saved, orKey, onSaveOrKey, onEditKey, onRemoveWord, onSwitchTab, onSaveToggle, user, syncing, onLogin, onLogout, srsData = {}, streak = { lastDate: '', count: 0 } }) {
+const OR_MODELS = [
+  { value: '', label: 'Auto (recommended)', desc: 'Fast for dict, full for story/chat' },
+  { value: 'meta-llama/llama-3.3-70b-instruct:free', label: 'Llama 3.3 70B (Free)', desc: 'Best quality — free tier' },
+  { value: 'meta-llama/llama-3.1-8b-instruct:free', label: 'Llama 3.1 8B (Free)', desc: 'Fastest — free tier' },
+  { value: 'google/gemma-3-27b-it:free', label: 'Gemma 3 27B (Free)', desc: 'Google — free tier' },
+  { value: 'mistralai/mistral-7b-instruct:free', label: 'Mistral 7B (Free)', desc: 'Efficient — free tier' },
+  { value: 'deepseek/deepseek-r1:free', label: 'DeepSeek R1 (Free)', desc: 'Reasoning model — free' },
+];
+
+export default function ProfileTab({ apiKey, saved, orKey, onSaveOrKey, orModel, onSaveOrModel, onEditKey, onRemoveWord, onSwitchTab, onSaveToggle, user, syncing, onLogin, onLogout, srsData = {}, streak = { lastDate: '', count: 0 } }) {
   const [quizHist, setQuizHist] = useState(() => lsGet(KEYS.QUIZ_HIST, []));
   const [searchHist, setSearchHist] = useState(() => lsGet(KEYS.HISTORY, []));
   const [selectedWord, setSelectedWord] = useState(null);
@@ -187,6 +196,29 @@ export default function ProfileTab({ apiKey, saved, orKey, onSaveOrKey, onEditKe
               style={{ fontSize: 11, color: 'var(--accent2)', marginTop: 6, display: 'block' }}>
               → OpenRouter မှာ API Key ရယူမည် (Free tier ရှိ)
             </a>
+          )}
+          {/* Model selector — only show if OR key is set */}
+          {orKey && (
+            <div style={{ marginTop: 12 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>
+                OpenRouter Model
+              </div>
+              <select
+                value={orModel || ''}
+                onChange={e => onSaveOrModel(e.target.value)}
+                style={{
+                  width: '100%', padding: '8px 10px', borderRadius: 8,
+                  background: 'var(--bg2)', border: '1px solid var(--border)',
+                  color: 'var(--text)', fontSize: 13, cursor: 'pointer',
+                }}
+              >
+                {OR_MODELS.map(m => (
+                  <option key={m.value} value={m.value}>
+                    {m.label} — {m.desc}
+                  </option>
+                ))}
+              </select>
+            </div>
           )}
         </div>
       </div>

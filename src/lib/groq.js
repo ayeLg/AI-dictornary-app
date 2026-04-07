@@ -28,7 +28,9 @@ export const CONTEXTS = [
 ];
 
 let _orKey = '';
+let _orModel = ''; // empty = use default per fast/full
 export function setOrKey(key) { _orKey = key || ''; }
+export function setOrModel(model) { _orModel = model || ''; }
 
 let _lastAPI = 'groq';
 export function getLastUsedAPI() { return _lastAPI; }
@@ -71,7 +73,7 @@ export async function groqAI(apiKey, prompt, temp = 0.1, maxTokens = 2048, fast 
     // Auto-fallback to OpenRouter on rate-limit or server error
     if (_orKey && (e.status === 429 || e.status === 503 || /rate.?limit|quota/i.test(e.message))) {
       console.info('⚡ Groq limit hit — falling back to OpenRouter');
-      const orModel = fast ? 'meta-llama/llama-3.1-8b-instruct' : 'meta-llama/llama-3.3-70b-instruct';
+      const orModel = _orModel || (fast ? 'meta-llama/llama-3.1-8b-instruct' : 'meta-llama/llama-3.3-70b-instruct');
       const result = await callAPI(
         'https://openrouter.ai/api/v1/chat/completions',
         _orKey, orModel, prompt, temp, maxTokens,
