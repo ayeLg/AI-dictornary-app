@@ -74,7 +74,16 @@ export async function groqAI(apiKey, prompt, temp = 0.1, maxTokens = 2048, fast 
   const model = fast ? FAST_MODEL : FULL_MODEL;
   const OR_HEADERS = { 'HTTP-Referer': 'https://ayeLg.github.io', 'X-Title': 'Mingalar Dictionary' };
   const OR_URL = 'https://openrouter.ai/api/v1/chat/completions';
-  const OR_FALLBACK = 'google/gemma-3-12b-it:free'; // reliable fallback
+
+  // Sequential fallback pool — tried one by one until one works
+  const OR_POOL = [
+    'meta-llama/llama-3.3-70b-instruct:free',
+    'google/gemma-3-27b-it:free',
+    'google/gemma-3-12b-it:free',
+    'meta-llama/llama-3.2-3b-instruct:free',
+    'nvidia/nemotron-3-nano-30b-a3b:free',
+    'nousresearch/hermes-3-llama-3.1-405b:free',
+  ];
 
   try {
     const result = await callAPI(
@@ -87,21 +96,30 @@ export async function groqAI(apiKey, prompt, temp = 0.1, maxTokens = 2048, fast 
     // Auto-fallback to OpenRouter on rate-limit or server error
     if (_orKey && (e.status === 429 || e.status === 503 || e.status === 500 || /rate.?limit|quota|provider|json|failed_generation/i.test(e.message))) {
       console.info('⚡ Groq limit hit — falling back to OpenRouter');
-      const orModel = _orModel || (fast ? 'meta-llama/llama-3.2-3b-instruct:free' : 'meta-llama/llama-3.3-70b-instruct:free');
-      try {
-        const result = await callAPI(OR_URL, _orKey, orModel, prompt, temp, maxTokens, OR_HEADERS);
-        _lastAPI = 'openrouter';
-        return result;
-      } catch (orErr) {
-        // OR primary model failed — retry with reliable fallback model
-        if (orModel !== OR_FALLBACK) {
-          console.warn(`⚠️ OR model "${orModel}" failed, retrying with ${OR_FALLBACK}`);
-          const result = await callAPI(OR_URL, _orKey, OR_FALLBACK, prompt, temp, maxTokens, OR_HEADERS);
+
+      // Build ordered list: user's chosen model first, then the rest of the pool
+      const chosen = _orModel || null;
+      const fallbacks = chosen
+        ? [chosen, ...OR_POOL.filter(m => m !== chosen)]
+        : OR_POOL;
+
+      let lastErr = null;
+      for (const orModel of fallbacks) {
+        try {
+          console.info(`🔀 Trying OR model: ${orModel}`);
+          const result = await callAPI(OR_URL, _orKey, orModel, prompt, temp, maxTokens, OR_HEADERS);
           _lastAPI = 'openrouter';
           return result;
+        } catch (orErr) {
+          console.warn(`⚠️ OR model "${orModel}" failed: ${orErr.message}`);
+          lastErr = orErr;
+          // Only continue to next model on provider/availability errors
+          if (!/provider|endpoint|no model|json|failed_generation|503|unavailable/i.test(orErr.message) && orErr.status !== 503 && orErr.status !== 500) {
+            break; // Auth or other fatal error — stop trying
+          }
         }
-        throw orErr;
       }
+      throw lastErr;
     }
     throw e;
   }
