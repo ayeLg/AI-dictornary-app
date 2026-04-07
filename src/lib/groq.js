@@ -74,7 +74,7 @@ export async function groqAI(apiKey, prompt, temp = 0.1, maxTokens = 2048, fast 
   const model = fast ? FAST_MODEL : FULL_MODEL;
   const OR_HEADERS = { 'HTTP-Referer': 'https://ayeLg.github.io', 'X-Title': 'Mingalar Dictionary' };
   const OR_URL = 'https://openrouter.ai/api/v1/chat/completions';
-  const OR_FALLBACK = 'mistralai/mistral-7b-instruct:free'; // reliable fallback
+  const OR_FALLBACK = 'google/gemma-3-12b-it:free'; // reliable fallback
 
   try {
     const result = await callAPI(
@@ -87,7 +87,7 @@ export async function groqAI(apiKey, prompt, temp = 0.1, maxTokens = 2048, fast 
     // Auto-fallback to OpenRouter on rate-limit or server error
     if (_orKey && (e.status === 429 || e.status === 503 || e.status === 500 || /rate.?limit|quota|provider|json|failed_generation/i.test(e.message))) {
       console.info('⚡ Groq limit hit — falling back to OpenRouter');
-      const orModel = _orModel || (fast ? 'meta-llama/llama-3.1-8b-instruct:free' : 'meta-llama/llama-3.3-70b-instruct:free');
+      const orModel = _orModel || (fast ? 'meta-llama/llama-3.2-3b-instruct:free' : 'meta-llama/llama-3.3-70b-instruct:free');
       try {
         const result = await callAPI(OR_URL, _orKey, orModel, prompt, temp, maxTokens, OR_HEADERS);
         _lastAPI = 'openrouter';
