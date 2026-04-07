@@ -74,7 +74,7 @@ export async function groqAI(apiKey, prompt, temp = 0.1, maxTokens = 2048, fast 
   const model = fast ? FAST_MODEL : FULL_MODEL;
   const OR_HEADERS = { 'HTTP-Referer': 'https://ayeLg.github.io', 'X-Title': 'Mingalar Dictionary' };
   const OR_URL = 'https://openrouter.ai/api/v1/chat/completions';
-  const OR_FALLBACK = 'meta-llama/llama-3.1-8b-instruct:free'; // reliable fallback
+  const OR_FALLBACK = 'mistralai/mistral-7b-instruct:free'; // reliable fallback
 
   try {
     const result = await callAPI(
