@@ -61,6 +61,12 @@ async function callAPI(url, apiKey, model, prompt, temp, maxTokens, extraHeaders
     throw err;
   }
   const data = await res.json();
+  // OpenRouter returns 200 but with error object in body
+  if (data.error) {
+    const err = new Error(data.error.message || 'API error');
+    err.status = data.error.code || res.status;
+    throw err;
+  }
   return (data.choices?.[0]?.message?.content || '').trim();
 }
 
@@ -79,7 +85,7 @@ export async function groqAI(apiKey, prompt, temp = 0.1, maxTokens = 2048, fast 
     return result;
   } catch (e) {
     // Auto-fallback to OpenRouter on rate-limit or server error
-    if (_orKey && (e.status === 429 || e.status === 503 || /rate.?limit|quota/i.test(e.message))) {
+    if (_orKey && (e.status === 429 || e.status === 503 || e.status === 500 || /rate.?limit|quota|provider|json|failed_generation/i.test(e.message))) {
       console.info('⚡ Groq limit hit — falling back to OpenRouter');
       const orModel = _orModel || (fast ? 'meta-llama/llama-3.1-8b-instruct:free' : 'meta-llama/llama-3.3-70b-instruct:free');
       try {
