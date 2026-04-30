@@ -1,12 +1,17 @@
 import { useState } from 'react';
 
-export default function ApiKeyModal({ onSave, onGoogleLogin, isEdit = false }) {
+export default function ApiKeyModal({ onSave, onGoogleLogin, onCancel, isEdit = false }) {
   const [key, setKey] = useState('');
   return (
-    <div className="modal-overlay">
-      <div className="modal-sheet">
+    <div className="modal-overlay" onClick={isEdit ? onCancel : undefined}>
+      <div className="modal-sheet" onClick={e => e.stopPropagation()}>
         <div className="modal-handle" />
-        <div className="modal-title">{isEdit ? 'Groq API Key ပြောင်းမည်' : 'Mingalar မှ ကြိုဆိုပါသည်'}</div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+          <div className="modal-title" style={{ marginBottom: 0 }}>{isEdit ? 'Groq API Key ပြောင်းမည်' : 'Mingalar မှ ကြိုဆိုပါသည်'}</div>
+          {isEdit && (
+            <button onClick={onCancel} style={{ background: 'none', border: 'none', color: 'var(--text3)', fontSize: 22, cursor: 'pointer', lineHeight: 1, padding: '0 4px' }}>×</button>
+          )}
+        </div>
 
         {!isEdit && (
           <>

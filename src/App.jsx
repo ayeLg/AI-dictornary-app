@@ -154,7 +154,7 @@ export default function App() {
 
   return (
     <>
-      {(needsKey || showKeyModal) && <ApiKeyModal onSave={handleSaveKey} onGoogleLogin={handleGoogleLogin} isEdit={showKeyModal} />}
+      {(needsKey || showKeyModal) && <ApiKeyModal onSave={handleSaveKey} onGoogleLogin={handleGoogleLogin} onCancel={() => setShowKeyModal(false)} isEdit={showKeyModal} />}
 
       <div className="app-header">
         <div className="app-brand">

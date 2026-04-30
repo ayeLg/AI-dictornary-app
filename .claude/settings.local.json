@@ -7,7 +7,13 @@
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(git push:*)",
-      "Bash(gh run:*)"
+      "Bash(gh run:*)",
+      "Bash(export PATH=\"/usr/local/bin:/opt/homebrew/bin:$PATH\")",
+      "Read(//opt/homebrew/lib/node_modules/npm/bin/**)",
+      "Read(//usr/local/**)",
+      "WebFetch(domain:openrouter.ai)",
+      "WebSearch",
+      "WebFetch(domain:costgoat.com)"
     ]
   }
 }
