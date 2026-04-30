@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { KEYS, lsGet, lsSet } from './lib/storage';
-import { setOrKey, setOrModel } from './lib/groq';
+import { setOrKey } from './lib/groq';
 import {
   fbAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut,
   cloudLoad, cloudSave,
@@ -20,7 +20,6 @@ export default function App() {
   const [activeTab, setActiveTab]           = useState('dictionary');
   const [apiKey, setApiKey]                 = useState(() => lsGet(KEYS.API, ''));
   const [orKey, setOrKeyState]              = useState(() => lsGet(KEYS.OR_KEY, ''));
-  const [orModel, setOrModelState]          = useState(() => lsGet(KEYS.OR_MODEL, ''));
   const [showKeyModal, setShowKeyModal]     = useState(false);
   const [saved, setSaved]                   = useState(() => lsGet(KEYS.SAVED, []));
   const [srsData, setSrsData]               = useState(() => lsGet(KEYS.SRS, {}));
@@ -82,18 +81,11 @@ export default function App() {
     });
   }, []);
 
-  // Keep module-level OR key + model in sync
   useEffect(() => { setOrKey(orKey); }, [orKey]);
-  useEffect(() => { setOrModel(orModel); }, [orModel]);
 
   const handleSaveOrKey = (key) => {
     lsSet(KEYS.OR_KEY, key);
     setOrKeyState(key);
-  };
-
-  const handleSaveOrModel = (model) => {
-    lsSet(KEYS.OR_MODEL, model);
-    setOrModelState(model);
   };
 
   const needsKey = authReady && !user && !apiKey && activeTab === 'dictionary';
@@ -162,7 +154,7 @@ export default function App() {
 
   return (
     <>
-      {(needsKey || showKeyModal) && <ApiKeyModal onSave={handleSaveKey} onGoogleLogin={handleGoogleLogin} />}
+      {(needsKey || showKeyModal) && <ApiKeyModal onSave={handleSaveKey} onGoogleLogin={handleGoogleLogin} isEdit={showKeyModal} />}
 
       <div className="app-header">
         <div className="app-brand">
@@ -199,7 +191,6 @@ export default function App() {
           <ProfileTab
             apiKey={apiKey} saved={saved}
             orKey={orKey} onSaveOrKey={handleSaveOrKey}
-            orModel={orModel} onSaveOrModel={handleSaveOrModel}
             onEditKey={() => setShowKeyModal(true)}
             onRemoveWord={handleRemoveWord}
             onSaveToggle={handleSaveToggle}

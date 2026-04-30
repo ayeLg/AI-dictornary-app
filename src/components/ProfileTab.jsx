@@ -9,23 +9,14 @@ function getMasteryLevel(srs) {
   return 'Familiar';
 }
 
-const OR_MODELS = [
-  { value: '', label: 'Auto (recommended)', desc: 'Fast for dict, full for story/chat' },
-  { value: 'meta-llama/llama-3.3-70b-instruct:free', label: 'Llama 3.3 70B (Free)', desc: 'Best quality — Meta free tier' },
-  { value: 'meta-llama/llama-3.2-3b-instruct:free', label: 'Llama 3.2 3B (Free)', desc: 'Fast & light — Meta free tier' },
-  { value: 'google/gemma-3-27b-it:free', label: 'Gemma 3 27B (Free)', desc: 'High quality — Google free tier' },
-  { value: 'google/gemma-3-12b-it:free', label: 'Gemma 3 12B (Free)', desc: 'Balanced — Google free tier' },
-  { value: 'nousresearch/hermes-3-llama-3.1-405b:free', label: 'Hermes 3 405B (Free)', desc: 'Huge model — Nous Research' },
-  { value: 'nvidia/nemotron-3-nano-30b-a3b:free', label: 'Nemotron 30B (Free)', desc: 'NVIDIA free tier' },
-];
-
-export default function ProfileTab({ apiKey, saved, orKey, onSaveOrKey, orModel, onSaveOrModel, onEditKey, onRemoveWord, onSwitchTab, onSaveToggle, user, syncing, onLogin, onLogout, srsData = {}, streak = { lastDate: '', count: 0 } }) {
+export default function ProfileTab({ apiKey, saved, orKey, onSaveOrKey, onEditKey, onRemoveWord, onSwitchTab, onSaveToggle, user, syncing, onLogin, onLogout, srsData = {}, streak = { lastDate: '', count: 0 } }) {
   const [quizHist, setQuizHist] = useState(() => lsGet(KEYS.QUIZ_HIST, []));
   const [searchHist, setSearchHist] = useState(() => lsGet(KEYS.HISTORY, []));
   const [selectedWord, setSelectedWord] = useState(null);
   const [wordSearch, setWordSearch] = useState('');
   const [orInput, setOrInput] = useState(orKey || '');
   const [orSaved, setOrSaved] = useState(false);
+  const [orEditing, setOrEditing] = useState(!orKey);
   const freq = lsGet(KEYS.FREQ, {});
 
   const totalSearches = Object.values(freq).reduce((a, b) => a + b, 0);
@@ -42,6 +33,7 @@ export default function ProfileTab({ apiKey, saved, orKey, onSaveOrKey, orModel,
   const saveOrKey = () => {
     onSaveOrKey(orInput.trim());
     setOrSaved(true);
+    setOrEditing(false);
     setTimeout(() => setOrSaved(false), 2000);
   };
 
@@ -168,58 +160,58 @@ export default function ProfileTab({ apiKey, saved, orKey, onSaveOrKey, orModel,
           <button className="icon-btn" onClick={onEditKey}>Edit</button>
         </div>
         <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12, marginTop: 4 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>
-            OpenRouter API Key
-            <span style={{ marginLeft: 6, fontSize: 10, color: 'var(--accent2)', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>
-              (Groq limit ပြည့်ရင် auto-fallback)
-            </span>
-          </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <input
-              className="modal-input"
-              type="password"
-              placeholder="sk-or-..."
-              value={orInput}
-              onChange={e => setOrInput(e.target.value)}
-              style={{ fontSize: 13, padding: '8px 12px', flex: 1 }}
-            />
-            <button
-              className="icon-btn"
-              onClick={saveOrKey}
-              disabled={orInput.trim() === (orKey || '')}
-              style={{ flexShrink: 0, color: orSaved ? 'var(--green)' : undefined }}
-            >
-              {orSaved ? '✓' : 'Save'}
-            </button>
-          </div>
-          {!orKey && (
-            <a href="https://openrouter.ai/keys" target="_blank" rel="noreferrer"
-              style={{ fontSize: 11, color: 'var(--accent2)', marginTop: 6, display: 'block' }}>
-              → OpenRouter မှာ API Key ရယူမည် (Free tier ရှိ)
-            </a>
-          )}
-          {/* Model selector — only show if OR key is set */}
-          {orKey && (
-            <div style={{ marginTop: 12 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>
-                OpenRouter Model
+          {!orEditing ? (
+            <div className="panel-row">
+              <div>
+                <div className="panel-row-label">
+                  OpenRouter API Key
+                  <span style={{ marginLeft: 6, fontSize: 10, color: 'var(--accent2)', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>
+                    (Dictionary — Gemini 2.0 Flash)
+                  </span>
+                </div>
+                <div className="panel-row-value">{orKey ? orKey.slice(0, 8) + '••••••••' + orKey.slice(-4) : 'မထည့်ရသေးပါ'}</div>
               </div>
-              <select
-                value={orModel || ''}
-                onChange={e => onSaveOrModel(e.target.value)}
-                style={{
-                  width: '100%', padding: '8px 10px', borderRadius: 8,
-                  background: 'var(--bg2)', border: '1px solid var(--border)',
-                  color: 'var(--text)', fontSize: 13, cursor: 'pointer',
-                }}
-              >
-                {OR_MODELS.map(m => (
-                  <option key={m.value} value={m.value}>
-                    {m.label} — {m.desc}
-                  </option>
-                ))}
-              </select>
+              <button className="icon-btn" onClick={() => { setOrInput(''); setOrEditing(true); }}>Edit</button>
             </div>
+          ) : (
+            <>
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>
+                OpenRouter API Key
+                <span style={{ marginLeft: 6, fontSize: 10, color: 'var(--accent2)', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>
+                  (Dictionary — Gemini 2.0 Flash)
+                </span>
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input
+                  className="modal-input"
+                  type="password"
+                  placeholder="sk-or-..."
+                  value={orInput}
+                  onChange={e => setOrInput(e.target.value)}
+                  style={{ fontSize: 13, padding: '8px 12px', flex: 1 }}
+                  autoFocus
+                />
+                <button
+                  className="icon-btn"
+                  onClick={saveOrKey}
+                  disabled={!orInput.trim()}
+                  style={{ flexShrink: 0, color: orSaved ? 'var(--green)' : undefined }}
+                >
+                  {orSaved ? '✓' : 'Save'}
+                </button>
+                {orKey && (
+                  <button className="icon-btn" onClick={() => setOrEditing(false)}>
+                    Cancel
+                  </button>
+                )}
+              </div>
+              {!orKey && (
+                <a href="https://openrouter.ai/keys" target="_blank" rel="noreferrer"
+                  style={{ fontSize: 11, color: 'var(--accent2)', marginTop: 6, display: 'block' }}>
+                  → OpenRouter မှာ API Key ရယူမည်
+                </a>
+              )}
+            </>
           )}
         </div>
       </div>

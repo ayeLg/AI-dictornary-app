@@ -28,15 +28,16 @@ export const CONTEXTS = [
 ];
 
 let _orKey = '';
-let _orModel = ''; // empty = use default per fast/full
 export function setOrKey(key) { _orKey = key || ''; }
-export function setOrModel(model) { _orModel = model || ''; }
 
 let _lastAPI = 'groq';
 export function getLastUsedAPI() { return _lastAPI; }
 
-const FAST_MODEL = 'llama-3.1-8b-instant';   // dictionary lookups — ~5× faster
-const FULL_MODEL = 'llama-3.3-70b-versatile'; // story, conversation, quiz
+const FAST_MODEL = 'llama-3.1-8b-instant';
+const FULL_MODEL = 'llama-3.3-70b-versatile';
+const GEMINI_MODEL = 'google/gemini-2.0-flash-001';
+const OR_URL = 'https://openrouter.ai/api/v1/chat/completions';
+const OR_HEADERS = { 'HTTP-Referer': 'https://ayeLg.github.io', 'X-Title': 'Mingalar Dictionary' };
 
 async function callAPI(url, apiKey, model, prompt, temp, maxTokens, extraHeaders = {}) {
   const isOpenRouter = url.includes('openrouter');
@@ -46,7 +47,6 @@ async function callAPI(url, apiKey, model, prompt, temp, maxTokens, extraHeaders
     temperature: temp,
     max_tokens: maxTokens,
   };
-  // Only Groq reliably supports json_object mode; OpenRouter models vary
   if (!isOpenRouter) body.response_format = { type: 'json_object' };
 
   const res = await fetch(url, {
@@ -61,7 +61,6 @@ async function callAPI(url, apiKey, model, prompt, temp, maxTokens, extraHeaders
     throw err;
   }
   const data = await res.json();
-  // OpenRouter returns 200 but with error object in body
   if (data.error) {
     const err = new Error(data.error.message || 'API error');
     err.status = data.error.code || res.status;
@@ -72,76 +71,30 @@ async function callAPI(url, apiKey, model, prompt, temp, maxTokens, extraHeaders
 
 export async function groqAI(apiKey, prompt, temp = 0.1, maxTokens = 2048, fast = false) {
   const model = fast ? FAST_MODEL : FULL_MODEL;
-  const OR_HEADERS = { 'HTTP-Referer': 'https://ayeLg.github.io', 'X-Title': 'Mingalar Dictionary' };
-  const OR_URL = 'https://openrouter.ai/api/v1/chat/completions';
+  const result = await callAPI(
+    'https://api.groq.com/openai/v1/chat/completions',
+    apiKey, model, prompt, temp, maxTokens
+  );
+  _lastAPI = 'groq';
+  return result;
+}
 
-  // Sequential fallback pool — tried one by one until one works
-  const OR_POOL = [
-    'meta-llama/llama-3.3-70b-instruct:free',
-    'google/gemma-3-27b-it:free',
-    'google/gemma-3-12b-it:free',
-    'meta-llama/llama-3.2-3b-instruct:free',
-    'nvidia/nemotron-3-nano-30b-a3b:free',
-    'nousresearch/hermes-3-llama-3.1-405b:free',
-  ];
-
-  try {
-    const result = await callAPI(
-      'https://api.groq.com/openai/v1/chat/completions',
-      apiKey, model, prompt, temp, maxTokens
-    );
-    _lastAPI = 'groq';
-    return result;
-  } catch (e) {
-    // Auto-fallback to OpenRouter on rate-limit or server error
-    if (_orKey && (e.status === 429 || e.status === 503 || e.status === 500 || /rate.?limit|quota|provider|json|failed_generation/i.test(e.message))) {
-      console.info('⚡ Groq limit hit — falling back to OpenRouter');
-
-      // Build ordered list: user's chosen model first, then the rest of the pool
-      const chosen = _orModel || null;
-      const fallbacks = chosen
-        ? [chosen, ...OR_POOL.filter(m => m !== chosen)]
-        : OR_POOL;
-
-      let lastErr = null;
-      for (const orModel of fallbacks) {
-        try {
-          console.info(`🔀 Trying OR model: ${orModel}`);
-          const result = await callAPI(OR_URL, _orKey, orModel, prompt, temp, maxTokens, OR_HEADERS);
-          _lastAPI = 'openrouter';
-          return result;
-        } catch (orErr) {
-          console.warn(`⚠️ OR model "${orModel}" failed: ${orErr.message}`);
-          lastErr = orErr;
-          // Only continue to next model on provider/availability errors
-          if (!/provider|endpoint|no model|json|failed_generation|503|unavailable/i.test(orErr.message) && orErr.status !== 503 && orErr.status !== 500) {
-            break; // Auth or other fatal error — stop trying
-          }
-        }
-      }
-      throw lastErr;
+function mergeDupePOS(meanings) {
+  if (!Array.isArray(meanings)) return meanings;
+  const map = new Map();
+  for (const m of meanings) {
+    const key = (m.pos || '').toLowerCase();
+    if (map.has(key)) {
+      map.get(key).definitions = [...map.get(key).definitions, ...(m.definitions || [])];
+    } else {
+      map.set(key, { ...m, definitions: [...(m.definitions || [])] });
     }
-    throw e;
   }
+  return Array.from(map.values());
 }
 
 export async function fetchWord(word, apiKey) {
-  // Merge duplicate POS entries (safety net for model mistakes)
-  function mergeDupePOS(meanings) {
-    if (!Array.isArray(meanings)) return meanings;
-    const map = new Map();
-    for (const m of meanings) {
-      const key = (m.pos || '').toLowerCase();
-      if (map.has(key)) {
-        map.get(key).definitions = [...map.get(key).definitions, ...(m.definitions || [])];
-      } else {
-        map.set(key, { ...m, definitions: [...(m.definitions || [])] });
-      }
-    }
-    return Array.from(map.values());
-  }
-
-  const raw = await groqAI(apiKey, `You are a comprehensive English-Myanmar dictionary. Analyze "${word}" and return ONLY raw JSON (no markdown):
+  const prompt = `You are a comprehensive English-Myanmar dictionary. Analyze "${word}" and return ONLY raw JSON (no markdown):
 
 {
   "word": "correct normalized form",
@@ -206,7 +159,12 @@ OTHER RULES:
 - synonyms: 2-4 synonyms as OBJECTS {word, nuance_en, nuance_my, use_when}. nuance_en = what specifically makes this synonym different from the main word (intensity, formality, connotation, typical context). use_when = concrete situation where this synonym is more appropriate than the main word.
 - antonyms: simple string array
 - related_words: 4 worth learning next
-- Return raw JSON only`, 0.15, 4000, true);
+- Return raw JSON only`;
+
+  const raw = _orKey
+    ? await callAPI(OR_URL, _orKey, GEMINI_MODEL, prompt, 0.15, 4000, OR_HEADERS)
+    : await groqAI(apiKey, prompt, 0.15, 4000, true);
+  _lastAPI = _orKey ? 'openrouter' : 'groq';
   const parsed = safeParseJSON(raw);
   if (parsed.meanings) parsed.meanings = mergeDupePOS(parsed.meanings);
   return parsed;
