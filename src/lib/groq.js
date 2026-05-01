@@ -222,26 +222,22 @@ Return JSON object with a "questions" array:
   return safeParseJSON(raw).questions;
 }
 
-export async function fetchExplain(text, apiKey) {
-  const raw = await groqAI(apiKey, `You are an English teacher for Myanmar students.
+export async function fetchTranslateEN(text, apiKey) {
+  const prompt = `Translate the following English text to Myanmar (Burmese). Return ONLY raw JSON (no markdown):
+{"translation_my": "Full Myanmar translation here"}
 
-Analyze this English text and help the student understand it:
+English text:
 "${text}"
 
-Return ONLY raw JSON (no markdown):
-{
-  "summary_my": "မြန်မာဘာသာဖြင့် အနှစ်ချုပ်",
-  "key_concepts": ["concept1", "concept2"],
-  "difficult_words": [
-    {"word": "...", "meaning_en": "simple English meaning", "meaning_my": "မြန်မာဘာသာ"}
-  ]
-}
-
 Rules:
-- summary_my: 2-3 sentences in Myanmar explaining the main idea
-- key_concepts: 3-5 important concepts/terms from the text (English)
-- difficult_words: words that are intermediate/advanced level, max 8 words
-- meaning_my must be in Myanmar script`, 0.1, 2048);
+- translation_my: natural, fluent Myanmar translation of the entire text
+- Translate everything — do not summarize or skip any part
+- Keep proper nouns and technical terms in English if no Myanmar equivalent exists
+- Return raw JSON only`;
+
+  const raw = _orKey
+    ? await callAPI(OR_URL, _orKey, GEMINI_MODEL, prompt, 0.1, 4000, OR_HEADERS)
+    : await groqAI(apiKey, prompt, 0.1, 4000, false);
   return safeParseJSON(raw);
 }
 
@@ -271,25 +267,20 @@ Rules:
 }
 
 export async function fetchTranslateMY(text, apiKey) {
-  const raw = await groqAI(apiKey, `You are a Myanmar-English translation assistant.
+  const prompt = `Translate the following Myanmar (Burmese) text to English. Return ONLY raw JSON (no markdown):
+{"translation_en": "Full natural English translation here"}
 
-Translate this Myanmar text to English and help the learner understand it:
+Myanmar text:
 "${text}"
-
-Return ONLY raw JSON (no markdown):
-{
-  "translation_en": "Full natural English translation here",
-  "summary_my": "မြန်မာဘာသာဖြင့် အနှစ်ချုပ် (2-3 ကြောင်း)",
-  "key_vocab": [
-    {"word_my": "မြန်မာစကား", "word_en": "English word", "meaning_en": "brief English definition"}
-  ]
-}
 
 Rules:
 - translation_en: fluent, natural English (not word-for-word literal)
-- summary_my: brief Myanmar explanation of what the text means/context
-- key_vocab: 4-8 notable Myanmar words from the text with their English equivalents
-- key_vocab meaning_en: short, simple definition`, 0.1, 2048);
+- Translate everything — do not summarize or skip any part
+- Return raw JSON only`;
+
+  const raw = _orKey
+    ? await callAPI(OR_URL, _orKey, GEMINI_MODEL, prompt, 0.1, 4000, OR_HEADERS)
+    : await groqAI(apiKey, prompt, 0.1, 2048, false);
   return safeParseJSON(raw);
 }
 

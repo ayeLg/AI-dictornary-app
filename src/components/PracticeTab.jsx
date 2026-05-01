@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { fetchExplain, fetchWritingFeedback, fetchTranslateMY, fetchConversation, fetchStory, fetchVoiceOpener, fetchVoiceReply } from '../lib/groq';
+import { fetchTranslateEN, fetchWritingFeedback, fetchTranslateMY, fetchConversation, fetchStory, fetchVoiceOpener, fetchVoiceReply } from '../lib/groq';
 
 /* ── Reading Section (EN↔MY) ─────────────────────────────────────── */
 function ReadingSection({ apiKey }) {
@@ -12,32 +12,26 @@ function ReadingSection({ apiKey }) {
 
   const switchDir = (d) => { setDir(d); setText(''); setResult(null); setError(null); };
 
-  const analyze = async () => {
+  const translate = async () => {
     setLoading(true); setError(null); setResult(null);
     try {
       const data = dir === 'en_my'
-        ? await fetchExplain(text, apiKey)
+        ? await fetchTranslateEN(text, apiKey)
         : await fetchTranslateMY(text, apiKey);
       setResult(data);
     } catch (e) { setError(e.message); }
     finally { setLoading(false); }
   };
 
-  const copyTranslation = () => {
-    navigator.clipboard.writeText(result.translation_en).then(() => {
+  const copy = (str) => {
+    navigator.clipboard.writeText(str).then(() => {
       setCopied(true); setTimeout(() => setCopied(false), 2000);
     });
   };
 
-  const renderHighlighted = (txt, words) => {
-    if (!words?.length) return txt;
-    const pattern = new RegExp(`\\b(${words.map(w => w.word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})\\b`, 'gi');
-    const parts = txt.split(pattern);
-    return parts.map((part, i) => {
-      const isMatch = words.some(w => w.word.toLowerCase() === part.toLowerCase());
-      return isMatch ? <mark key={i} className="difficult-word">{part}</mark> : part;
-    });
-  };
+  const translationText = result
+    ? (dir === 'en_my' ? result.translation_my : result.translation_en)
+    : '';
 
   return (
     <div style={{padding:'16px 20px'}}>
@@ -47,82 +41,34 @@ function ReadingSection({ apiKey }) {
         <button className={`dir-toggle-btn${dir === 'my_en' ? ' active' : ''}`} onClick={() => switchDir('my_en')}>MY → EN 🇬🇧</button>
       </div>
       <div style={{fontFamily:'var(--font-my)', fontSize:13, color:'var(--text2)', marginBottom:12}}>
-        {dir === 'en_my' ? 'နားမလည်တဲ့ English စာပိုဒ် ကို paste လုပ်ပါ → Myanmar ဖြင့် ရှင်းပြပေးမည်' : 'Myanmar စာပိုဒ် ကို paste လုပ်ပါ → English လို ဘာသာပြန်ပေးမည်'}
+        {dir === 'en_my' ? 'နားမလည်တဲ့ English စာပိုဒ် ကို paste လုပ်ပါ → Myanmar ဖြင့် တိုက်ရိုက် ဘာသာပြန်ပေးမည်' : 'Myanmar စာပိုဒ် ကို paste လုပ်ပါ → English လို တိုက်ရိုက် ဘာသာပြန်ပေးမည်'}
       </div>
       <textarea
         className="modal-input"
         style={{resize:'vertical', minHeight:120, fontFamily: dir === 'en_my' ? 'var(--font-en)' : 'var(--font-my)', fontSize:14, lineHeight:1.6}}
-        placeholder={dir === 'en_my' ? 'Paste English text here... (e.g. from a book, article, or documentation)' : 'မြန်မာ စာပိုဒ် ဤနေရာတွင် ကူးထည့်ပါ...'}
+        placeholder={dir === 'en_my' ? 'Paste English text here...' : 'မြန်မာ စာပိုဒ် ဤနေရာတွင် ကူးထည့်ပါ...'}
         value={text} onChange={e => setText(e.target.value)}
       />
-      <button className="btn-primary" style={{marginTop:10}} onClick={analyze} disabled={loading || text.trim().length < 10 || !apiKey}>
-        {loading ? (dir === 'en_my' ? 'Analyzing...' : 'Translating...') : (dir === 'en_my' ? '🔍 Analyze Text' : '🌐 Translate to English')}
+      <button className="btn-primary" style={{marginTop:10}} onClick={translate} disabled={loading || text.trim().length < 5 || !apiKey}>
+        {loading ? 'Translating...' : '🌐 Translate'}
       </button>
       {error && <div className="error-banner" style={{marginTop:12}}>⚠️ {error}</div>}
 
-      {result && dir === 'en_my' && (
+      {result && translationText && (
         <div style={{marginTop:20}}>
-          <div style={{background:'var(--card)', border:'1px solid var(--border)', borderRadius:12, padding:'14px', marginBottom:14}}>
-            <div style={{fontSize:10, fontWeight:700, color:'var(--text3)', textTransform:'uppercase', letterSpacing:1, marginBottom:8}}>Myanmar Summary</div>
-            <div style={{fontFamily:'var(--font-my)', fontSize:15, color:'var(--text)', lineHeight:1.8}}>{result.summary_my}</div>
-          </div>
-          {result.key_concepts?.length > 0 && (
-            <div style={{marginBottom:14}}>
-              <div style={{fontSize:10, fontWeight:700, color:'var(--text3)', textTransform:'uppercase', letterSpacing:1, marginBottom:8}}>Key Concepts</div>
-              <div className="chips-row">{result.key_concepts.map((c, i) => <span key={i} className="chip related">{c}</span>)}</div>
-            </div>
-          )}
-          {result.difficult_words?.length > 0 && (
-            <div style={{background:'var(--card)', border:'1px solid var(--border)', borderRadius:12, padding:'14px', marginBottom:14}}>
-              <div style={{fontSize:10, fontWeight:700, color:'var(--text3)', textTransform:'uppercase', letterSpacing:1, marginBottom:10}}>Difficult Words ({result.difficult_words.length})</div>
-              {result.difficult_words.map((w, i) => (
-                <div key={i} className="difficult-word-item">
-                  <div className="difficult-en">{w.word}</div>
-                  <div style={{fontSize:12, color:'var(--text3)', marginTop:1}}>{w.meaning_en}</div>
-                  <div className="difficult-my">{w.meaning_my}</div>
-                </div>
-              ))}
-            </div>
-          )}
           <div style={{background:'var(--card)', border:'1px solid var(--border)', borderRadius:12, padding:'14px'}}>
-            <div style={{fontSize:10, fontWeight:700, color:'var(--text3)', textTransform:'uppercase', letterSpacing:1, marginBottom:8}}>Highlighted Text</div>
-            <div style={{fontSize:14, color:'var(--text2)', lineHeight:1.8, fontFamily:'var(--font-en)'}}>{renderHighlighted(text, result.difficult_words)}</div>
-          </div>
-        </div>
-      )}
-
-      {result && dir === 'my_en' && (
-        <div style={{marginTop:20}}>
-          <div style={{background:'var(--card)', border:'1px solid var(--border)', borderRadius:12, padding:'14px', marginBottom:14}}>
-            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8}}>
-              <div style={{fontSize:10, fontWeight:700, color:'var(--text3)', textTransform:'uppercase', letterSpacing:1}}>English Translation</div>
-              <button onClick={copyTranslation} style={{background:'var(--accent-bg)', border:'1px solid rgba(99,102,241,0.3)', color:'var(--accent2)', borderRadius:6, padding:'4px 10px', fontSize:11, fontWeight:700, cursor:'pointer'}}>
+            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10}}>
+              <div style={{fontSize:10, fontWeight:700, color:'var(--text3)', textTransform:'uppercase', letterSpacing:1}}>
+                {dir === 'en_my' ? 'Myanmar Translation' : 'English Translation'}
+              </div>
+              <button onClick={() => copy(translationText)} style={{background:'var(--accent-bg)', border:'1px solid rgba(99,102,241,0.3)', color:'var(--accent2)', borderRadius:6, padding:'4px 10px', fontSize:11, fontWeight:700, cursor:'pointer'}}>
                 {copied ? '✓ Copied' : 'Copy'}
               </button>
             </div>
-            <div style={{fontSize:15, color:'var(--text)', lineHeight:1.8, fontFamily:'var(--font-en)'}}>{result.translation_en}</div>
+            <div style={{fontSize:15, color:'var(--text)', lineHeight:1.9, fontFamily: dir === 'en_my' ? 'var(--font-my)' : 'var(--font-en)'}}>
+              {translationText}
+            </div>
           </div>
-          {result.summary_my && (
-            <div style={{background:'var(--card)', border:'1px solid var(--border)', borderRadius:12, padding:'14px', marginBottom:14}}>
-              <div style={{fontSize:10, fontWeight:700, color:'var(--text3)', textTransform:'uppercase', letterSpacing:1, marginBottom:8}}>Context</div>
-              <div style={{fontFamily:'var(--font-my)', fontSize:14, color:'var(--text2)', lineHeight:1.8}}>{result.summary_my}</div>
-            </div>
-          )}
-          {result.key_vocab?.length > 0 && (
-            <div style={{background:'var(--card)', border:'1px solid var(--border)', borderRadius:12, padding:'14px'}}>
-              <div style={{fontSize:10, fontWeight:700, color:'var(--text3)', textTransform:'uppercase', letterSpacing:1, marginBottom:10}}>Key Vocabulary ({result.key_vocab.length})</div>
-              {result.key_vocab.map((v, i) => (
-                <div key={i} className="difficult-word-item">
-                  <div style={{display:'flex', alignItems:'baseline', gap:8}}>
-                    <div style={{fontFamily:'var(--font-my)', fontSize:15, color:'var(--gold)', fontWeight:600}}>{v.word_my}</div>
-                    <div style={{fontSize:12, color:'var(--text3)'}}>→</div>
-                    <div className="difficult-en">{v.word_en}</div>
-                  </div>
-                  <div style={{fontSize:12, color:'var(--text3)', marginTop:2}}>{v.meaning_en}</div>
-                </div>
-              ))}
-            </div>
-          )}
         </div>
       )}
     </div>
