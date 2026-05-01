@@ -27,3 +27,6 @@ dist-ssr
 note.md
 .claude/*
 or-test/*
+
+# Raw dictionary source data (extracted to public/ornagai.json via scripts/extract-ornagai.py)
+Contents/

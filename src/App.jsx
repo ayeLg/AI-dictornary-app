@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { KEYS, lsGet, lsSet } from './lib/storage';
 import { setOrKey } from './lib/groq';
+import { preloadOrnagai } from './lib/ornagai';
 import {
   fbAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut,
   cloudLoad, cloudSave,
@@ -46,7 +47,7 @@ export default function App() {
   };
 
   // Update streak on mount
-  useEffect(() => { updateStreak(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { updateStreak(); preloadOrnagai(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auth state listener — loads saved words + apiKey + srsData from cloud
   useEffect(() => {

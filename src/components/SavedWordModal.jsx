@@ -1,4 +1,5 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
+import { lookupOrnagai } from '../lib/ornagai';
 
 const POS_COLORS = {
   verb:        { bg: 'rgba(99,102,241,0.15)',  color: '#818cf8' },
@@ -74,7 +75,13 @@ export default function SavedWordModal({ word, onClose, onRemove, onUpdate }) {
   const [savedFlash, setSavedFlash] = useState(null);
   // Local copy so edits reflect immediately without closing modal
   const [wordData, setWordData] = useState(word);
+  const [ornagaiData, setOrnagaiData] = useState(undefined); // undefined=loading, null=not found
   const hasTTS = 'speechSynthesis' in window;
+
+  useEffect(() => {
+    setOrnagaiData(undefined);
+    lookupOrnagai(wordData.word).then(result => setOrnagaiData(result ?? null)).catch(() => setOrnagaiData(null));
+  }, [wordData.word]);
 
   const f = wordData.word_forms || {};
   const hasNewFormat = Array.isArray(wordData.meanings) && wordData.meanings.length > 0;
@@ -352,6 +359,33 @@ export default function SavedWordModal({ word, onClose, onRemove, onUpdate }) {
           <div className="info-section">
             <div className="info-label">Related Words</div>
             <div className="chip-row">{wordData.related_words.map(r => <span key={r} className="chip rel">{r}</span>)}</div>
+          </div>
+        )}
+
+        {/* ── Ornagai Dictionary ── */}
+        {ornagaiData !== null && (
+          <div className="info-section" style={{borderTop:'1px solid var(--border)', paddingTop:14}}>
+            <div className="info-label" style={{display:'flex', alignItems:'center', gap:6}}>
+              📖 Ornagai Dictionary
+              {ornagaiData === undefined && (
+                <span style={{fontSize:11, color:'var(--text3)', fontWeight:400}}>loading…</span>
+              )}
+            </div>
+            {ornagaiData && ornagaiData.map((entry, i) => (
+              <div key={i} style={{marginBottom: i < ornagaiData.length - 1 ? 10 : 0}}>
+                <div style={{display:'flex', alignItems:'center', gap:6, marginBottom:4}}>
+                  {(() => { const s = posStyle(entry.p); return (
+                    <span style={{background:s.bg, color:s.color, border:`1px solid ${s.color}55`, padding:'1px 8px', borderRadius:8, fontSize:11, fontWeight:700}}>{entry.p}</span>
+                  );})()}
+                  {entry.ph && <span style={{fontSize:12, color:'var(--text3)', fontFamily:'var(--font-en)'}}>/{entry.ph}/</span>}
+                </div>
+                <ol style={{margin:'0 0 0 18px', padding:0, listStyle:'decimal'}}>
+                  {entry.d.map((def, j) => (
+                    <li key={j} style={{fontSize:14, color:'var(--text2)', fontFamily:'var(--font-my)', lineHeight:1.7, marginBottom:2}}>{def}</li>
+                  ))}
+                </ol>
+              </div>
+            ))}
           </div>
         )}
 
