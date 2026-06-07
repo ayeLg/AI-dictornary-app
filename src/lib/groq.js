@@ -35,7 +35,7 @@ export function getLastUsedAPI() { return _lastAPI; }
 
 const FAST_MODEL = 'llama-3.1-8b-instant';
 const FULL_MODEL = 'llama-3.3-70b-versatile';
-const GEMINI_MODEL = 'google/gemini-2.0-flash-001';
+const GEMINI_MODEL = 'google/gemini-2.5-flash';
 const OR_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const OR_HEADERS = { 'HTTP-Referer': 'https://ayeLg.github.io', 'X-Title': 'Mingalar Dictionary' };
 
