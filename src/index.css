@@ -185,6 +185,21 @@ body::after {
   border-radius: var(--radius-sm); font-size: 13px; color: #f87171; line-height: 1.6;
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
 }
+.ai-generating-banner {
+  margin: 4px 20px 12px; padding: 11px 14px;
+  background: rgba(99,102,241,0.06); border: 1px solid rgba(99,102,241,0.18);
+  border-radius: var(--radius-sm); display: flex; align-items: center;
+  gap: 10px; font-size: 12.5px; color: var(--text2);
+}
+.ai-generating-banner .spinner-icon {
+  animation: rotate 1.8s linear infinite;
+  display: inline-block;
+  font-size: 14px;
+}
+@keyframes rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
 /* Phase 3: Retry button */
 .retry-btn {
   flex-shrink: 0; padding: 5px 12px;

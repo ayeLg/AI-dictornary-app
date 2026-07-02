@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { KEYS, lsGet, lsSet } from '../lib/storage';
 import { fetchWord, getLastUsedAPI } from '../lib/groq';
+import { lookupOrnagai } from '../lib/ornagai';
 import WordResult from './WordResult';
 
 function SkeletonCard() {
@@ -42,6 +43,46 @@ function WordOfDay({ saved, onSearch }) {
   );
 }
 
+const apiBadgeStyles = {
+  groq: {
+    bg: 'rgba(99,102,241,0.12)',
+    color: '#818cf8',
+    border: '1px solid #818cf844',
+    label: '⚡ Groq AI'
+  },
+  openrouter: {
+    bg: 'rgba(16,185,129,0.12)',
+    color: '#34d399',
+    border: '1px solid #34d39944',
+    label: '🔀 OpenRouter AI'
+  },
+  cache: {
+    bg: 'rgba(59,130,246,0.12)',
+    color: '#3b82f6',
+    border: '1px solid #3b82f644',
+    label: '💾 Cached'
+  },
+  ornagai_preview: {
+    bg: 'rgba(139,92,246,0.12)',
+    color: '#a78bfa',
+    border: '1px solid #a78bfa44',
+    label: '📖 Local Preview'
+  },
+  offline: {
+    bg: 'rgba(107,114,128,0.12)',
+    color: '#9ca3af',
+    border: '1px solid #9ca3af44',
+    label: '📴 Offline Local'
+  },
+  saved: {
+    bg: 'rgba(245,158,11,0.12)',
+    color: '#fbbf24',
+    border: '1px solid #fbbf2444',
+    label: '💾 Saved'
+  }
+};
+
+
 export default function DictionaryTab({ apiKey, saved, onSaveToggle, pendingSearch, onPendingClear }) {
   const [query, setQuery]         = useState('');
   const [searchedQ, setSearchedQ] = useState('');
@@ -50,6 +91,8 @@ export default function DictionaryTab({ apiKey, saved, onSaveToggle, pendingSear
   const [error, setError]         = useState(null);
   const [usedAPI, setUsedAPI]     = useState(null);
   const [history, setHistory]     = useState(() => lsGet(KEYS.HISTORY, []));
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const searchIdRef               = useRef(0);
   // Phase 3: autocomplete state
   const [sugg, setSugg]           = useState([]);
   const [showSugg, setShowSugg]   = useState(false);
@@ -61,7 +104,7 @@ export default function DictionaryTab({ apiKey, saved, onSaveToggle, pendingSear
       doSearch(pendingSearch);
       onPendingClear();
     }
-  }, [pendingSearch]);
+  }, [pendingSearch, doSearch, onPendingClear]);
 
   // Phase 3: build autocomplete suggestions
   const buildSugg = (val) => {
@@ -83,33 +126,113 @@ export default function DictionaryTab({ apiKey, saved, onSaveToggle, pendingSear
   const doSearch = useCallback(async (word) => {
     const w = word.trim();
     if (!w) return;
-    setQuery(w); setSearchedQ(w);
-    setShowSugg(false); setSugg([]);
-    setLoading(true); setError(null); setResult(null);
-    try {
-      const savedWord = (saved || []).find(s => s.word?.toLowerCase() === w.toLowerCase());
-      let finalResult;
-      if (savedWord) {
-        finalResult = savedWord;
-        setResult(savedWord);
-        setUsedAPI('saved');
-      } else {
-        finalResult = await fetchWord(w, apiKey);
-        setResult(finalResult);
-        setUsedAPI(getLastUsedAPI());
-      }
-      // Phase 3: track search frequency
+
+    // Helper to update search stats
+    const updateStats = (finalWord) => {
       const freq = lsGet(KEYS.FREQ, {});
-      freq[finalResult.word] = (freq[finalResult.word] || 0) + 1;
+      freq[finalWord] = (freq[finalWord] || 0) + 1;
       lsSet(KEYS.FREQ, freq);
-      // update history
+
       setHistory(prev => {
         const next = [w, ...prev.filter(h => h.toLowerCase() !== w.toLowerCase())].slice(0, 10);
         lsSet(KEYS.HISTORY, next);
         return next;
       });
-    } catch (e) { setError(e.message); }
-    finally { setLoading(false); }
+    };
+
+    searchIdRef.current += 1;
+    const currentSearchId = searchIdRef.current;
+
+    setQuery(w); setSearchedQ(w);
+    setShowSugg(false); setSugg([]);
+    setLoading(true); setError(null); setResult(null);
+    setAiGenerating(false);
+
+    try {
+      // 1. Check if bookmarked/saved
+      const savedWord = (saved || []).find(s => s.word?.toLowerCase() === w.toLowerCase());
+      if (savedWord) {
+        if (currentSearchId !== searchIdRef.current) return;
+        setResult(savedWord);
+        setUsedAPI('saved');
+        setLoading(false);
+        updateStats(savedWord.word);
+        return;
+      }
+
+      // 2. Check local search cache (ming_cache)
+      const cache = lsGet('ming_cache', {});
+      const cachedWord = cache[w.toLowerCase()];
+      if (cachedWord) {
+        if (currentSearchId !== searchIdRef.current) return;
+        setResult(cachedWord);
+        setUsedAPI('cache');
+        setLoading(false);
+        updateStats(cachedWord.word);
+        return;
+      }
+
+      // 3. Perform local Ornagai lookup for instant preview
+      let localPreview = null;
+      try {
+        const ornagaiData = await lookupOrnagai(w);
+        if (ornagaiData && currentSearchId === searchIdRef.current) {
+          localPreview = {
+            word: w,
+            phonetic: ornagaiData[0]?.ph || null,
+            english_meaning: ornagaiData[0]?.d?.[0] || '',
+            myanmar_meaning: ornagaiData[0]?.d?.[0] || '',
+            meanings: ornagaiData.map(entry => ({
+              pos: entry.p,
+              definitions: entry.d.map(def => ({
+                definition_en: '',
+                definition_my: def,
+                examples: []
+              }))
+            }))
+          };
+          setResult(localPreview);
+          setUsedAPI('ornagai_preview');
+          setLoading(false);
+          setAiGenerating(true);
+        }
+      } catch (err) {
+        console.warn('Ornagai preview lookup failed:', err);
+      }
+
+      // 4. Call AI API in background
+      try {
+        const finalResult = await fetchWord(w, apiKey);
+        if (currentSearchId !== searchIdRef.current) return;
+
+        setResult(finalResult);
+        setUsedAPI(getLastUsedAPI());
+        setAiGenerating(false);
+        setLoading(false);
+
+        // Save successfully fetched result to local search cache
+        const updatedCache = lsGet('ming_cache', {});
+        updatedCache[finalResult.word?.toLowerCase() || w.toLowerCase()] = finalResult;
+        lsSet('ming_cache', updatedCache);
+
+        updateStats(finalResult.word || w);
+      } catch (apiErr) {
+        if (currentSearchId !== searchIdRef.current) return;
+
+        if (localPreview) {
+          // If we have a local preview, keep showing it, just stop generating status
+          setAiGenerating(false);
+          setUsedAPI('offline');
+        } else {
+          setError(apiErr.message);
+          setLoading(false);
+        }
+      }
+    } catch (e) {
+      if (currentSearchId !== searchIdRef.current) return;
+      setError(e.message);
+      setLoading(false);
+    }
   }, [apiKey, saved]);
 
   const isSaved  = result && saved.some(s => s.word?.toLowerCase() === result.word?.toLowerCase());
@@ -171,7 +294,7 @@ export default function DictionaryTab({ apiKey, saved, onSaveToggle, pendingSear
         <div className="typo-banner">
           <span>💡 Showing results for</span>
           <span className="typo-suggest" onClick={() => doSearch(result.word)}>{result.word}</span>
-          <span>(corrected from "{searchedQ}")</span>
+          <span>(corrected from &ldquo;{searchedQ}&rdquo;)</span>
         </div>
       )}
 
@@ -185,22 +308,32 @@ export default function DictionaryTab({ apiKey, saved, onSaveToggle, pendingSear
         </div>
       )}
 
+      {aiGenerating && (
+        <div className="ai-generating-banner">
+          <span className="spinner-icon">✨</span>
+          <span>AI is analyzing word nuance, collocations, and idioms...</span>
+        </div>
+      )}
+
       {result && !loading && (
         <>
-          {usedAPI && (
-            <div style={{ textAlign: 'right', marginBottom: 4, paddingRight: 18 }}>
-              <span style={{
-                display: 'inline-block',
-                fontSize: 10, fontWeight: 600, letterSpacing: 0.5,
-                padding: '3px 8px', borderRadius: 20,
-                background: usedAPI === 'groq' ? 'rgba(99,102,241,0.12)' : usedAPI === 'openrouter' ? 'rgba(16,185,129,0.12)' : 'rgba(245,158,11,0.12)',
-                color: usedAPI === 'groq' ? '#818cf8' : usedAPI === 'openrouter' ? '#34d399' : '#fbbf24',
-                border: `1px solid ${usedAPI === 'groq' ? '#818cf844' : '#34d39944'}`,
-              }}>
-                {usedAPI === 'groq' ? '⚡ Groq' : usedAPI === 'openrouter' ? '🔀 OpenRouter' : '💾 Saved'}
-              </span>
-            </div>
-          )}
+          {usedAPI && (() => {
+            const badge = apiBadgeStyles[usedAPI] || apiBadgeStyles.saved;
+            return (
+              <div style={{ textAlign: 'right', marginBottom: 4, paddingRight: 18 }}>
+                <span style={{
+                  display: 'inline-block',
+                  fontSize: 10, fontWeight: 600, letterSpacing: 0.5,
+                  padding: '3px 8px', borderRadius: 20,
+                  background: badge.bg,
+                  color: badge.color,
+                  border: badge.border,
+                }}>
+                  {badge.label}
+                </span>
+              </div>
+            );
+          })()}
           <WordResult
             result={result} isSaved={isSaved}
             onSave={() => onSaveToggle(result)} onChipClick={doSearch}
