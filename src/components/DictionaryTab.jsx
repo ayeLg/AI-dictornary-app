@@ -93,6 +93,8 @@ export default function DictionaryTab({ apiKey, saved, onSaveToggle, pendingSear
   const [history, setHistory]     = useState(() => lsGet(KEYS.HISTORY, []));
   const [aiGenerating, setAiGenerating] = useState(false);
   const searchIdRef               = useRef(0);
+  const savedRef                  = useRef(saved);
+  useEffect(() => { savedRef.current = saved; }, [saved]);
   // Phase 3: autocomplete state
   const [sugg, setSugg]           = useState([]);
   const [showSugg, setShowSugg]   = useState(false);
@@ -190,6 +192,12 @@ export default function DictionaryTab({ apiKey, saved, onSaveToggle, pendingSear
         updatedCache[finalResult.word?.toLowerCase() || w.toLowerCase()] = finalResult;
         lsSet('ming_cache', updatedCache);
 
+        // If the word was saved while the AI was generating, update the saved list with the final AI result!
+        const isCurrentlySaved = (savedRef.current || []).some(s => s.word?.toLowerCase() === w.toLowerCase());
+        if (isCurrentlySaved) {
+          onSaveToggle(finalResult, true);
+        }
+
         updateStats(finalResult.word || w);
       } catch (apiErr) {
         if (currentSearchId !== searchIdRef.current) return;
@@ -208,7 +216,7 @@ export default function DictionaryTab({ apiKey, saved, onSaveToggle, pendingSear
       setError(e.message);
       setLoading(false);
     }
-  }, [apiKey, saved]);
+  }, [apiKey, saved, onSaveToggle]);
 
   // Handle tap from Profile history chips
   useEffect(() => {
