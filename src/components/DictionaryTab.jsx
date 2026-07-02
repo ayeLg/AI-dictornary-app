@@ -98,31 +98,6 @@ export default function DictionaryTab({ apiKey, saved, onSaveToggle, pendingSear
   const [showSugg, setShowSugg]   = useState(false);
   const blurTimer                 = useRef(null);
 
-  // Handle tap from Profile history chips
-  useEffect(() => {
-    if (pendingSearch) {
-      doSearch(pendingSearch);
-      onPendingClear();
-    }
-  }, [pendingSearch, doSearch, onPendingClear]);
-
-  // Phase 3: build autocomplete suggestions
-  const buildSugg = (val) => {
-    if (val.length < 2) { setSugg([]); setShowSugg(false); return; }
-    const q = val.toLowerCase();
-    const fromSaved   = saved.filter(w => w.word.toLowerCase().includes(q)).map(w => ({ text: w.word, icon: '🔖' }));
-    const fromHistory = history.filter(h => h.toLowerCase().includes(q) && !fromSaved.find(s => s.text.toLowerCase() === h.toLowerCase())).map(h => ({ text: h, icon: '🕐' }));
-    const list = [...fromSaved, ...fromHistory].slice(0, 6);
-    setSugg(list);
-    setShowSugg(list.length > 0);
-  };
-
-  const handleQueryChange = (e) => {
-    const val = e.target.value;
-    setQuery(val);
-    buildSugg(val);
-  };
-
   const doSearch = useCallback(async (word) => {
     const w = word.trim();
     if (!w) return;
@@ -234,6 +209,31 @@ export default function DictionaryTab({ apiKey, saved, onSaveToggle, pendingSear
       setLoading(false);
     }
   }, [apiKey, saved]);
+
+  // Handle tap from Profile history chips
+  useEffect(() => {
+    if (pendingSearch) {
+      doSearch(pendingSearch);
+      onPendingClear();
+    }
+  }, [pendingSearch, doSearch, onPendingClear]);
+
+  // Phase 3: build autocomplete suggestions
+  const buildSugg = (val) => {
+    if (val.length < 2) { setSugg([]); setShowSugg(false); return; }
+    const q = val.toLowerCase();
+    const fromSaved   = saved.filter(w => w.word.toLowerCase().includes(q)).map(w => ({ text: w.word, icon: '🔖' }));
+    const fromHistory = history.filter(h => h.toLowerCase().includes(q) && !fromSaved.find(s => s.text.toLowerCase() === h.toLowerCase())).map(h => ({ text: h, icon: '🕐' }));
+    const list = [...fromSaved, ...fromHistory].slice(0, 6);
+    setSugg(list);
+    setShowSugg(list.length > 0);
+  };
+
+  const handleQueryChange = (e) => {
+    const val = e.target.value;
+    setQuery(val);
+    buildSugg(val);
+  };
 
   const isSaved  = result && saved.some(s => s.word?.toLowerCase() === result.word?.toLowerCase());
   const showTypo = result && result.word && searchedQ.toLowerCase() !== result.word.toLowerCase();
