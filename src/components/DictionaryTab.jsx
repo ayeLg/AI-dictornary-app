@@ -87,12 +87,20 @@ export default function DictionaryTab({ apiKey, saved, onSaveToggle, pendingSear
     setShowSugg(false); setSugg([]);
     setLoading(true); setError(null); setResult(null);
     try {
-      const data = await fetchWord(w, apiKey);
-      setResult(data);
-      setUsedAPI(getLastUsedAPI());
+      const savedWord = (saved || []).find(s => s.word?.toLowerCase() === w.toLowerCase());
+      let finalResult;
+      if (savedWord) {
+        finalResult = savedWord;
+        setResult(savedWord);
+        setUsedAPI('saved');
+      } else {
+        finalResult = await fetchWord(w, apiKey);
+        setResult(finalResult);
+        setUsedAPI(getLastUsedAPI());
+      }
       // Phase 3: track search frequency
       const freq = lsGet(KEYS.FREQ, {});
-      freq[data.word] = (freq[data.word] || 0) + 1;
+      freq[finalResult.word] = (freq[finalResult.word] || 0) + 1;
       lsSet(KEYS.FREQ, freq);
       // update history
       setHistory(prev => {
@@ -102,7 +110,7 @@ export default function DictionaryTab({ apiKey, saved, onSaveToggle, pendingSear
       });
     } catch (e) { setError(e.message); }
     finally { setLoading(false); }
-  }, [apiKey]);
+  }, [apiKey, saved]);
 
   const isSaved  = result && saved.some(s => s.word?.toLowerCase() === result.word?.toLowerCase());
   const showTypo = result && result.word && searchedQ.toLowerCase() !== result.word.toLowerCase();
@@ -185,11 +193,11 @@ export default function DictionaryTab({ apiKey, saved, onSaveToggle, pendingSear
                 display: 'inline-block',
                 fontSize: 10, fontWeight: 600, letterSpacing: 0.5,
                 padding: '3px 8px', borderRadius: 20,
-                background: usedAPI === 'groq' ? 'rgba(99,102,241,0.12)' : 'rgba(16,185,129,0.12)',
-                color: usedAPI === 'groq' ? '#818cf8' : '#34d399',
+                background: usedAPI === 'groq' ? 'rgba(99,102,241,0.12)' : usedAPI === 'openrouter' ? 'rgba(16,185,129,0.12)' : 'rgba(245,158,11,0.12)',
+                color: usedAPI === 'groq' ? '#818cf8' : usedAPI === 'openrouter' ? '#34d399' : '#fbbf24',
                 border: `1px solid ${usedAPI === 'groq' ? '#818cf844' : '#34d39944'}`,
               }}>
-                {usedAPI === 'groq' ? '⚡ Groq' : '🔀 OpenRouter'}
+                {usedAPI === 'groq' ? '⚡ Groq' : usedAPI === 'openrouter' ? '🔀 OpenRouter' : '💾 Saved'}
               </span>
             </div>
           )}
