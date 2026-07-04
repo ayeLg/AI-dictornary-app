@@ -22,7 +22,7 @@ export function onAuthStateChange(callback) {
 export async function signInWithGoogle() {
   const { error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
-    options: { redirectTo: globalThis.location.origin },
+    options: { redirectTo: globalThis.location.origin + globalThis.location.pathname },
   });
   if (error) throw error;
 }
