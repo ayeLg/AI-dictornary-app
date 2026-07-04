@@ -52,25 +52,27 @@ export default function App() {
   // Auth state listener — loads saved words + apiKey + srsData from cloud
   useEffect(() => {
     return onAuthStateChange(async (u) => {
+      console.log('App.jsx onAuthStateChange callback triggered with user:', u ? u.email : 'null');
       setUser(u);
       setAuthReady(true);
       if (u) {
+        console.log('User signed in, starting cloud sync...');
         setSyncing(true);
         try {
-          const { saved: cloudWords, apiKey: cloudKey, srsData: cloudSrs } = await cloudLoad(u.uid);
+          const { saved: cloudWords, apiKey: cloudKey, srsData: cloudSrs } = await cloudLoad(u.id);
           if (cloudWords.length > 0) {
             setSaved(cloudWords);
             lsSet(KEYS.SAVED, cloudWords);
           } else {
             const local = lsGet(KEYS.SAVED, []);
-            if (local.length > 0) await cloudSave(u.uid, local, lsGet(KEYS.API, ''));
+            if (local.length > 0) await cloudSave(u.id, local, lsGet(KEYS.API, ''));
           }
           if (cloudKey) {
             setApiKey(cloudKey);
             lsSet(KEYS.API, cloudKey);
           } else {
             const localKey = lsGet(KEYS.API, '');
-            if (localKey) await cloudSave(u.uid, cloudWords, localKey);
+            if (localKey) await cloudSave(u.id, cloudWords, localKey);
           }
           if (cloudSrs && Object.keys(cloudSrs).length > 0) {
             setSrsData(cloudSrs);
@@ -95,7 +97,7 @@ export default function App() {
     lsSet(KEYS.API, key);
     setApiKey(key);
     setShowKeyModal(false);
-    if (user) cloudSave(user.uid, lsGet(KEYS.SAVED, []), key).catch(() => {});
+    if (user) cloudSave(user.id, lsGet(KEYS.SAVED, []), key).catch(() => {});
   };
 
   const handleSaveToggle = (result, updateOnly = false) => {
@@ -113,14 +115,14 @@ export default function App() {
     }
     lsSet(KEYS.SAVED, next);
     setSaved(next);
-    if (user) cloudSave(user.uid, next).catch(e => console.warn('☁️ Cloud save failed:', e));
+    if (user) cloudSave(user.id, next).catch(e => console.warn('☁️ Cloud save failed:', e));
   };
 
   const handleRemoveWord = (word) => {
     setSaved(prev => {
       const next = prev.filter(s => s.word?.toLowerCase() !== word.toLowerCase());
       lsSet(KEYS.SAVED, next);
-      if (user) cloudSave(user.uid, next).catch(() => {});
+      if (user) cloudSave(user.id, next).catch(() => {});
       return next;
     });
   };
@@ -131,7 +133,7 @@ export default function App() {
     if (user) {
       clearTimeout(syncTimerRef.current);
       syncTimerRef.current = setTimeout(() => {
-        cloudSave(user.uid, lsGet(KEYS.SAVED, []), undefined, newSrs).catch(() => {});
+        cloudSave(user.id, lsGet(KEYS.SAVED, []), undefined, newSrs).catch(() => {});
       }, 2000);
     }
   };

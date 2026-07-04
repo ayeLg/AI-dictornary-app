@@ -9,11 +9,16 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON);
 /* ── Auth helpers ── */
 
 export function onAuthStateChange(callback) {
+  console.log('Supabase: Setting up onAuthStateChange listener');
   const { data: { subscription } } = supabase.auth.onAuthStateChange(
-    (_event, session) => callback(session?.user ?? null)
+    (event, session) => {
+      console.log('Supabase Auth Event:', event, session?.user ? 'User detected' : 'No user');
+      callback(session?.user ?? null);
+    }
   );
   // Also fire immediately with current session
   supabase.auth.getSession().then(({ data: { session } }) => {
+    console.log('Supabase Initial Session check:', session?.user ? 'User detected' : 'No user');
     callback(session?.user ?? null);
   });
   return () => subscription.unsubscribe();
