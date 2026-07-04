@@ -91,7 +91,7 @@ export default function App() {
     setOrKeyState(key);
   };
 
-  const needsKey = authReady && !user && !apiKey && activeTab === 'dictionary';
+  const needsKey = authReady && !apiKey && activeTab === 'dictionary';
 
   const handleSaveKey = (key) => {
     lsSet(KEYS.API, key);
@@ -156,7 +156,7 @@ export default function App() {
 
   return (
     <>
-      {(needsKey || showKeyModal) && <ApiKeyModal onSave={handleSaveKey} onGoogleLogin={handleGoogleLogin} onCancel={() => setShowKeyModal(false)} isEdit={showKeyModal} />}
+      {(needsKey || showKeyModal) && <ApiKeyModal onSave={handleSaveKey} onGoogleLogin={handleGoogleLogin} onCancel={() => setShowKeyModal(false)} isEdit={showKeyModal} user={user} />}
 
       <div className="app-header">
         <div className="app-brand">

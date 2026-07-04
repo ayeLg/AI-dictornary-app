@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-export default function ApiKeyModal({ onSave, onGoogleLogin, onCancel, isEdit = false }) {
+export default function ApiKeyModal({ onSave, onGoogleLogin, onCancel, isEdit = false, user = null }) {
   const [key, setKey] = useState('');
   return (
     <div className="modal-overlay" onClick={isEdit ? onCancel : undefined}>
@@ -13,7 +13,7 @@ export default function ApiKeyModal({ onSave, onGoogleLogin, onCancel, isEdit = 
           )}
         </div>
 
-        {!isEdit && (
+        {!isEdit && !user && (
           <>
             <p className="modal-desc" style={{marginBottom:10}}>
               Google account နဲ့ login လုပ်ရင် API key ကို အလိုအလျောက် sync ဖြစ်မယ်
