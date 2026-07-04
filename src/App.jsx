@@ -3,9 +3,9 @@ import { KEYS, lsGet, lsSet } from './lib/storage';
 import { setOrKey } from './lib/groq';
 import { preloadOrnagai } from './lib/ornagai';
 import {
-  fbAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut,
+  onAuthStateChange, signInWithGoogle, signOutUser,
   cloudLoad, cloudSave,
-} from './lib/firebase';
+} from './lib/supabase';
 import OfflineBanner from './components/OfflineBanner';
 import ApiKeyModal from './components/ApiKeyModal';
 import DictionaryTab from './components/DictionaryTab';
@@ -51,7 +51,7 @@ export default function App() {
 
   // Auth state listener — loads saved words + apiKey + srsData from cloud
   useEffect(() => {
-    return onAuthStateChanged(fbAuth, async (u) => {
+    return onAuthStateChange(async (u) => {
       setUser(u);
       setAuthReady(true);
       if (u) {
@@ -137,10 +137,9 @@ export default function App() {
   };
 
   const handleGoogleLogin = () => {
-    const provider = new GoogleAuthProvider();
-    signInWithPopup(fbAuth, provider).catch(e => alert('Login failed: ' + e.message));
+    signInWithGoogle().catch(e => alert('Login failed: ' + e.message));
   };
-  const handleLogout = () => signOut(fbAuth);
+  const handleLogout = () => signOutUser();
 
   const learnDue = getLearnDueCount(saved, srsData);
 
