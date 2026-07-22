@@ -78,9 +78,9 @@ export default function ProfileTab({ apiKey, saved, orKey, onSaveOrKey, onEditKe
       <div className="panel-card" style={{ marginBottom: 16 }}>
         {user ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <img src={user.photoURL} alt="" style={{ width: 40, height: 40, borderRadius: '50%', flexShrink: 0 }} />
+            <img src={user.user_metadata?.avatar_url || user.user_metadata?.picture} alt="" style={{ width: 40, height: 40, borderRadius: '50%', flexShrink: 0 }} />
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>{user.displayName}</div>
+              <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>{user.user_metadata?.full_name || 'User'}</div>
               <div style={{ fontSize: 12, color: 'var(--text3)' }}>{syncing ? '⟳ Cloud sync လုပ်နေသည်…' : '✓ Cloud sync ဖြစ်ပြီးပြီ'}</div>
             </div>
             <button className="icon-btn danger" onClick={onLogout}>Logout</button>

@@ -16,11 +16,6 @@ export function onAuthStateChange(callback) {
       callback(session?.user ?? null);
     }
   );
-  // Also fire immediately with current session
-  supabase.auth.getSession().then(({ data: { session } }) => {
-    console.log('Supabase Initial Session check:', session?.user ? 'User detected' : 'No user');
-    callback(session?.user ?? null);
-  });
   return () => subscription.unsubscribe();
 }
 

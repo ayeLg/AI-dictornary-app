@@ -49,40 +49,67 @@ export default function App() {
   // Update streak on mount
   useEffect(() => { updateStreak(); preloadOrnagai(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Auth state listener — loads saved words + apiKey + srsData from cloud
+  // Auth state listener — sets user state synchronously
   useEffect(() => {
-    return onAuthStateChange(async (u) => {
+    return onAuthStateChange((u) => {
       console.log('App.jsx onAuthStateChange callback triggered with user:', u ? u.email : 'null');
       setUser(u);
       setAuthReady(true);
-      if (u) {
-        console.log('User signed in, starting cloud sync...');
-        setSyncing(true);
-        try {
-          const { saved: cloudWords, apiKey: cloudKey, srsData: cloudSrs } = await cloudLoad(u.id);
-          if (cloudWords.length > 0) {
-            setSaved(cloudWords);
-            lsSet(KEYS.SAVED, cloudWords);
-          } else {
-            const local = lsGet(KEYS.SAVED, []);
-            if (local.length > 0) await cloudSave(u.id, local, lsGet(KEYS.API, ''));
-          }
-          if (cloudKey) {
-            setApiKey(cloudKey);
-            lsSet(KEYS.API, cloudKey);
-          } else {
-            const localKey = lsGet(KEYS.API, '');
-            if (localKey) await cloudSave(u.id, cloudWords, localKey);
-          }
-          if (cloudSrs && Object.keys(cloudSrs).length > 0) {
-            setSrsData(cloudSrs);
-            lsSet(KEYS.SRS, cloudSrs);
-          }
-        } catch (e) { console.warn('Cloud load failed', e); }
-        finally { setSyncing(false); }
-      }
     });
   }, []);
+
+  // Decoupled cloud sync triggered by user state change to prevent deadlocks
+  useEffect(() => {
+    if (!user) {
+      setSyncing(false);
+      return;
+    }
+
+    let isMounted = true;
+    console.log('User signed in, starting cloud sync...');
+    setSyncing(true);
+
+    const performSync = async () => {
+      try {
+        const { saved: cloudWords, apiKey: cloudKey, srsData: cloudSrs } = await cloudLoad(user.id);
+        
+        if (!isMounted) return;
+
+        if (cloudWords.length > 0) {
+          setSaved(cloudWords);
+          lsSet(KEYS.SAVED, cloudWords);
+        } else {
+          const local = lsGet(KEYS.SAVED, []);
+          if (local.length > 0) await cloudSave(user.id, local, lsGet(KEYS.API, ''));
+        }
+
+        if (cloudKey) {
+          setApiKey(cloudKey);
+          lsSet(KEYS.API, cloudKey);
+        } else {
+          const localKey = lsGet(KEYS.API, '');
+          if (localKey) await cloudSave(user.id, cloudWords, localKey);
+        }
+
+        if (cloudSrs && Object.keys(cloudSrs).length > 0) {
+          setSrsData(cloudSrs);
+          lsSet(KEYS.SRS, cloudSrs);
+        }
+      } catch (e) {
+        console.warn('Cloud load failed', e);
+      } finally {
+        if (isMounted) {
+          setSyncing(false);
+        }
+      }
+    };
+
+    performSync();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user]);
 
   useEffect(() => { setOrKey(orKey); }, [orKey]);
 
@@ -166,7 +193,7 @@ export default function App() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {syncing && <span style={{ fontSize: 11, color: 'var(--text3)' }}>⟳ syncing…</span>}
           {user && (
-            <img src={user.photoURL} alt="" style={{ width: 28, height: 28, borderRadius: '50%', border: '2px solid var(--accent)' }} />
+            <img src={user.user_metadata?.avatar_url || user.user_metadata?.picture} alt="" style={{ width: 28, height: 28, borderRadius: '50%', border: '2px solid var(--accent)' }} />
           )}
         </div>
       </div>
