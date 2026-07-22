@@ -1,4 +1,4 @@
-const CACHE = 'mingalar-v3';
+const CACHE = 'mingalar-v4';
 const PRECACHE = ['./index.html', './manifest.json', './icon.svg'];
 
 // Skip external hosts (fonts, CDN, API)
@@ -31,6 +31,19 @@ self.addEventListener('fetch', e => {
     const url = new URL(e.request.url);
     if (SKIP_HOSTS.some(h => url.hostname.includes(h))) return;
   } catch { return; }
+
+  // Network-first for page navigations, so index.html (and the hashed
+  // bundle URLs it points at) never goes stale behind a cache-first hit.
+  if (e.request.mode === 'navigate') {
+    e.respondWith(
+      fetch(e.request).then(res => {
+        const clone = res.clone();
+        caches.open(CACHE).then(c => c.put(e.request, clone));
+        return res;
+      }).catch(() => caches.match(e.request))
+    );
+    return;
+  }
 
   e.respondWith(
     caches.match(e.request).then(cached => {
