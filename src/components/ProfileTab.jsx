@@ -189,7 +189,6 @@ export default function ProfileTab({ apiKey, saved, orKey, onSaveOrKey, onEditKe
                   value={orInput}
                   onChange={e => setOrInput(e.target.value)}
                   style={{ fontSize: 13, padding: '8px 12px', flex: 1 }}
-                  autoFocus
                 />
                 <button
                   className="icon-btn"
