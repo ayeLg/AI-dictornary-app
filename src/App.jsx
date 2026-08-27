@@ -14,6 +14,7 @@ import DailyTab from './components/DailyTab';
 import ProfileTab from './components/ProfileTab';
 import LearnTab, { getLearnDueCount } from './components/LearnTab';
 import PracticeTab from './components/PracticeTab';
+import ListenTab from './components/ListenTab';
 
 const TODAY = () => new Date().toISOString().slice(0, 10);
 
@@ -178,6 +179,7 @@ export default function App() {
     { id: 'quiz',       icon: '🧠', label: 'Quiz' },
     { id: 'practice',   icon: '✏️',  label: 'Practice' },
     { id: 'daily',      icon: '📖', label: 'Daily' },
+    { id: 'listen',     icon: '🔊', label: 'Listen' },
     { id: 'profile',    icon: '👤', label: 'Profile' },
   ];
 
@@ -215,6 +217,9 @@ export default function App() {
         )}
         {activeTab === 'daily' && (
           <DailyTab apiKey={apiKey} saved={saved} />
+        )}
+        {activeTab === 'listen' && (
+          <ListenTab saved={saved} onSaveToggle={handleSaveToggle} orKey={orKey} />
         )}
         {activeTab === 'profile' && (
           <ProfileTab

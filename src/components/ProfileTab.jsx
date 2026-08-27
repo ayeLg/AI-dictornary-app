@@ -37,6 +37,7 @@ export default function ProfileTab({ apiKey, saved, orKey, onSaveOrKey, onEditKe
     setTimeout(() => setOrSaved(false), 2000);
   };
 
+
   const masteryColors = { New: 'var(--text3)', Learning: 'var(--gold)', Familiar: 'var(--accent2)', Mastered: 'var(--green)' };
 
   const breakdown = useMemo(() => {
@@ -166,7 +167,7 @@ export default function ProfileTab({ apiKey, saved, orKey, onSaveOrKey, onEditKe
                 <div className="panel-row-label">
                   OpenRouter API Key
                   <span style={{ marginLeft: 6, fontSize: 10, color: 'var(--accent2)', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>
-                    (Dictionary — Gemini 2.0 Flash)
+                    (Dictionary + Listen — Gemini)
                   </span>
                 </div>
                 <div className="panel-row-value">{orKey ? orKey.slice(0, 8) + '••••••••' + orKey.slice(-4) : 'မထည့်ရသေးပါ'}</div>
@@ -178,7 +179,7 @@ export default function ProfileTab({ apiKey, saved, orKey, onSaveOrKey, onEditKe
               <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>
                 OpenRouter API Key
                 <span style={{ marginLeft: 6, fontSize: 10, color: 'var(--accent2)', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>
-                  (Dictionary — Gemini 2.0 Flash)
+                  (Dictionary + Listen — Gemini)
                 </span>
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
