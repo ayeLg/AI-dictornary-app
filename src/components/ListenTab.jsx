@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { buildSpeechScript, synthesizeSpeech } from '../lib/geminiTts';
+import { saveAudio, getAudio, getAllAudioWords } from '../lib/audioStore';
 
 function shuffled(arr) {
   const a = [...arr];
@@ -11,6 +12,7 @@ function shuffled(arr) {
 }
 
 const activeStyle = { background: 'var(--accent-bg)', borderColor: 'var(--accent)', color: 'var(--accent2)' };
+const wordKey = (w) => w.toLowerCase();
 
 export default function ListenTab({ saved, onSaveToggle, orKey }) {
   const [busyWord, setBusyWord] = useState(null);
@@ -21,17 +23,47 @@ export default function ListenTab({ saved, onSaveToggle, orKey }) {
   const [queueIndex, setQueueIndex] = useState(0);
   const [loop, setLoop] = useState(false);
   const [bulkProgress, setBulkProgress] = useState(null);
+  const [audioWords, setAudioWords] = useState(new Set());
   const audioRef = useRef(null);
+  const migratingRef = useRef(new Set());
 
   const hasKey = !!orKey;
-  const generatedWords = saved.filter(w => w.audio_my);
-  const pendingWords = saved.filter(w => !w.audio_my);
+  const generatedWords = saved.filter(w => audioWords.has(wordKey(w.word)));
+  const pendingWords = saved.filter(w => !audioWords.has(wordKey(w.word)));
+
+  // Load which words already have audio in IndexedDB (has far more headroom than localStorage).
+  useEffect(() => {
+    getAllAudioWords().then(keys => setAudioWords(new Set(keys))).catch(() => {});
+  }, []);
+
+  // One-time migration: older saves embedded audio_my directly on the word (localStorage/cloud
+  // blob) — move it into IndexedDB and strip it off so it stops bloating synced storage.
+  useEffect(() => {
+    const legacy = saved.filter(w => w.audio_my && !migratingRef.current.has(wordKey(w.word)));
+    legacy.forEach(w => {
+      migratingRef.current.add(wordKey(w.word));
+      saveAudio(w.word, w.audio_my)
+        .then(() => {
+          setAudioWords(prev => new Set(prev).add(wordKey(w.word)));
+          // eslint-disable-next-line no-unused-vars
+          const { audio_my, audio_my_at, ...stripped } = w;
+          onSaveToggle(stripped, true);
+        })
+        .catch(() => { migratingRef.current.delete(wordKey(w.word)); });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [saved]);
 
   useEffect(() => {
     const el = audioRef.current;
     if (!el || queue.length === 0) return;
-    el.src = `data:audio/wav;base64,${queue[queueIndex].audio_my}`;
-    el.play().catch(() => {});
+    let cancelled = false;
+    getAudio(queue[queueIndex].word).then(base64 => {
+      if (cancelled || !base64) return;
+      el.src = `data:audio/wav;base64,${base64}`;
+      el.play().catch(() => {});
+    });
+    return () => { cancelled = true; };
   }, [queue, queueIndex]);
 
   const generate = async (word) => {
@@ -41,7 +73,8 @@ export default function ListenTab({ saved, onSaveToggle, orKey }) {
     try {
       const text = buildSpeechScript(word);
       const audio_my = await synthesizeSpeech({ text, apiKey: orKey });
-      onSaveToggle({ ...word, audio_my, audio_my_at: Date.now() }, true);
+      await saveAudio(word.word, audio_my);
+      setAudioWords(prev => new Set(prev).add(wordKey(word.word)));
     } catch (e) {
       setErrors(prev => ({ ...prev, [word.word]: e.message || 'Generate မအောင်မြင်ပါ' }));
     } finally {
@@ -150,6 +183,7 @@ export default function ListenTab({ saved, onSaveToggle, orKey }) {
       ) : (
         <div className="panel-card">
           {saved.map(w => {
+            const hasAudio = audioWords.has(wordKey(w.word));
             const isCurrent = queue.length > 0 && queue[queueIndex].word === w.word;
             return (
               <div key={w.word} className="saved-word-item" style={isCurrent ? { background: 'var(--accent-bg)' } : undefined}>
@@ -162,7 +196,7 @@ export default function ListenTab({ saved, onSaveToggle, orKey }) {
                     <div style={{ fontSize: 11, color: '#f87171', marginTop: 3 }}>{errors[w.word]}</div>
                   )}
                 </div>
-                {w.audio_my ? (
+                {hasAudio ? (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     {selectMode && (
                       <input type="checkbox" checked={selected.has(w.word)} onChange={() => toggleSelected(w.word)} />
