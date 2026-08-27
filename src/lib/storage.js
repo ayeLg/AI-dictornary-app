@@ -15,4 +15,7 @@ export const lsGet = (k, fb = null) => {
   catch { return fb; }
 };
 
-export const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+export const lsSet = (k, v) => {
+  try { localStorage.setItem(k, JSON.stringify(v)); }
+  catch (e) { console.warn(`localStorage write failed for "${k}" (likely quota exceeded):`, e); }
+};

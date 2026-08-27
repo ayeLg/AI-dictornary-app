@@ -129,21 +129,22 @@ export default function App() {
   };
 
   const handleSaveToggle = (result, updateOnly = false) => {
-    const current = lsGet(KEYS.SAVED, []);
-    const exists = current.some(s => s.word?.toLowerCase() === result.word?.toLowerCase());
-    let next;
-    if (updateOnly) {
-      next = exists
-        ? current.map(s => s.word?.toLowerCase() === result.word?.toLowerCase() ? result : s)
-        : current;
-    } else {
-      next = exists
-        ? current.filter(s => s.word?.toLowerCase() !== result.word?.toLowerCase())
-        : [result, ...current];
-    }
-    lsSet(KEYS.SAVED, next);
-    setSaved(next);
-    if (user) cloudSave(user.id, next).catch(e => console.warn('☁️ Cloud save failed:', e));
+    setSaved(current => {
+      const exists = current.some(s => s.word?.toLowerCase() === result.word?.toLowerCase());
+      let next;
+      if (updateOnly) {
+        next = exists
+          ? current.map(s => s.word?.toLowerCase() === result.word?.toLowerCase() ? result : s)
+          : current;
+      } else {
+        next = exists
+          ? current.filter(s => s.word?.toLowerCase() !== result.word?.toLowerCase())
+          : [result, ...current];
+      }
+      lsSet(KEYS.SAVED, next);
+      if (user) cloudSave(user.id, next).catch(e => console.warn('☁️ Cloud save failed:', e));
+      return next;
+    });
   };
 
   const handleRemoveWord = (word) => {
