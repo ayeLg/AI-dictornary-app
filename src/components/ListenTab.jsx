@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { buildSpeechScript, synthesizeSpeech } from '../lib/geminiTts';
-import { saveAudio, getAudio, getAllAudioWords } from '../lib/audioStore';
+import { cloudSaveAudio, cloudLoadAudioWords, cloudLoadAudio } from '../lib/supabase';
+import { getAllAudioWords, getAudio, deleteAudio } from '../lib/audioStore';
 
 function shuffled(arr) {
   const a = [...arr];
@@ -14,7 +15,7 @@ function shuffled(arr) {
 const activeStyle = { background: 'var(--accent-bg)', borderColor: 'var(--accent)', color: 'var(--accent2)' };
 const wordKey = (w) => w.toLowerCase();
 
-export default function ListenTab({ saved, onSaveToggle, orKey }) {
+export default function ListenTab({ saved, onSaveToggle, orKey, user, onLogin }) {
   const [busyWord, setBusyWord] = useState(null);
   const [errors, setErrors] = useState({});
   const [selectMode, setSelectMode] = useState(false);
@@ -31,18 +32,22 @@ export default function ListenTab({ saved, onSaveToggle, orKey }) {
   const generatedWords = saved.filter(w => audioWords.has(wordKey(w.word)));
   const pendingWords = saved.filter(w => !audioWords.has(wordKey(w.word)));
 
-  // Load which words already have audio in IndexedDB (has far more headroom than localStorage).
+  // Load which words already have audio saved in the cloud.
   useEffect(() => {
-    getAllAudioWords().then(keys => setAudioWords(new Set(keys))).catch(() => {});
-  }, []);
+    if (!user) return;
+    cloudLoadAudioWords(user.id).then(words => setAudioWords(new Set(words))).catch(() => {});
+  }, [user]);
 
-  // One-time migration: older saves embedded audio_my directly on the word (localStorage/cloud
-  // blob) — move it into IndexedDB and strip it off so it stops bloating synced storage.
+  // One-time migration from older storage: audio_my embedded directly on the word
+  // (pre-IndexedDB), and audio previously cached in this browser's IndexedDB
+  // (pre-cloud) — both move into the audio_clips table so it follows the account.
   useEffect(() => {
-    const legacy = saved.filter(w => w.audio_my && !migratingRef.current.has(wordKey(w.word)));
-    legacy.forEach(w => {
+    if (!user) return;
+
+    const legacyInline = saved.filter(w => w.audio_my && !migratingRef.current.has(wordKey(w.word)));
+    legacyInline.forEach(w => {
       migratingRef.current.add(wordKey(w.word));
-      saveAudio(w.word, w.audio_my)
+      cloudSaveAudio(user.id, w.word, w.audio_my)
         .then(() => {
           setAudioWords(prev => new Set(prev).add(wordKey(w.word)));
           // eslint-disable-next-line no-unused-vars
@@ -51,29 +56,43 @@ export default function ListenTab({ saved, onSaveToggle, orKey }) {
         })
         .catch(() => { migratingRef.current.delete(wordKey(w.word)); });
     });
+
+    getAllAudioWords().then(localWords => {
+      localWords.forEach(word => {
+        if (migratingRef.current.has(wordKey(word))) return;
+        migratingRef.current.add(wordKey(word));
+        getAudio(word)
+          .then(base64 => base64 && cloudSaveAudio(user.id, word, base64))
+          .then(() => {
+            setAudioWords(prev => new Set(prev).add(wordKey(word)));
+            deleteAudio(word).catch(() => {});
+          })
+          .catch(() => { migratingRef.current.delete(wordKey(word)); });
+      });
+    }).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [saved]);
+  }, [user, saved]);
 
   useEffect(() => {
     const el = audioRef.current;
-    if (!el || queue.length === 0) return;
+    if (!el || queue.length === 0 || !user) return;
     let cancelled = false;
-    getAudio(queue[queueIndex].word).then(base64 => {
+    cloudLoadAudio(user.id, queue[queueIndex].word).then(base64 => {
       if (cancelled || !base64) return;
       el.src = `data:audio/wav;base64,${base64}`;
       el.play().catch(() => {});
     });
     return () => { cancelled = true; };
-  }, [queue, queueIndex]);
+  }, [queue, queueIndex, user]);
 
   const generate = async (word) => {
-    if (!hasKey) return;
+    if (!hasKey || !user) return;
     setBusyWord(word.word);
     setErrors(prev => ({ ...prev, [word.word]: null }));
     try {
       const text = buildSpeechScript(word);
       const audio_my = await synthesizeSpeech({ text, apiKey: orKey });
-      await saveAudio(word.word, audio_my);
+      await cloudSaveAudio(user.id, word.word, audio_my);
       setAudioWords(prev => new Set(prev).add(wordKey(word.word)));
     } catch (e) {
       setErrors(prev => ({ ...prev, [word.word]: e.message || 'Generate မအောင်မြင်ပါ' }));
@@ -83,7 +102,7 @@ export default function ListenTab({ saved, onSaveToggle, orKey }) {
   };
 
   const generateAll = async () => {
-    if (!hasKey || pendingWords.length === 0) return;
+    if (!hasKey || !user || pendingWords.length === 0) return;
     setBulkProgress({ done: 0, total: pendingWords.length });
     for (let i = 0; i < pendingWords.length; i++) {
       await generate(pendingWords[i]);
@@ -119,6 +138,27 @@ export default function ListenTab({ saved, onSaveToggle, orKey }) {
     setQueue([]);
     setQueueIndex(0);
   };
+
+  if (!user) {
+    return (
+      <div className="section-wrap tab-fade">
+        <div className="section-title">Listen</div>
+        <div className="panel-card" style={{ textAlign: 'center', padding: '28px 20px' }}>
+          <div style={{ fontSize: 13, color: 'var(--text2)', marginBottom: 12 }}>
+            Listen tab က audio ကို account နဲ့တွဲပြီး cloud မှာ သိမ်းပါတယ်။<br />
+            Google account နဲ့ login လုပ်ပါ။
+          </div>
+          <button
+            onClick={onLogin}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: '#fff', color: '#1a1a1a', border: 'none', borderRadius: 8, padding: '10px 20px', fontWeight: 600, fontSize: 14, cursor: 'pointer' }}
+          >
+            <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.08 17.74 9.5 24 9.5z" /><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" /><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" /><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.29-8.16 2.29-6.26 0-11.57-3.59-13.43-8.83l-7.98 6.19C6.51 42.62 14.62 48 24 48z" /></svg>
+            Sign in with Google
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="section-wrap tab-fade">

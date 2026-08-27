@@ -62,3 +62,32 @@ export async function cloudLoad(uid) {
     srsData: data.srs_data || {},
   };
 }
+
+/* ── Audio clips (Listen tab — one row per word, not one blob per user) ── */
+
+export async function cloudSaveAudio(uid, word, audio_my) {
+  const { error } = await supabase
+    .from('audio_clips')
+    .upsert(
+      { user_id: uid, word: word.toLowerCase(), audio_my, updated_at: new Date().toISOString() },
+      { onConflict: 'user_id,word' }
+    );
+  if (error) throw error;
+}
+
+export async function cloudLoadAudioWords(uid) {
+  const { data, error } = await supabase.from('audio_clips').select('word').eq('user_id', uid);
+  if (error) throw error;
+  return (data || []).map(r => r.word);
+}
+
+export async function cloudLoadAudio(uid, word) {
+  const { data, error } = await supabase
+    .from('audio_clips')
+    .select('audio_my')
+    .eq('user_id', uid)
+    .eq('word', word.toLowerCase())
+    .maybeSingle();
+  if (error) throw error;
+  return data?.audio_my || null;
+}

@@ -220,7 +220,7 @@ export default function App() {
           <DailyTab apiKey={apiKey} saved={saved} />
         )}
         {activeTab === 'listen' && (
-          <ListenTab saved={saved} onSaveToggle={handleSaveToggle} orKey={orKey} />
+          <ListenTab saved={saved} onSaveToggle={handleSaveToggle} orKey={orKey} user={user} onLogin={handleGoogleLogin} />
         )}
         {activeTab === 'profile' && (
           <ProfileTab
