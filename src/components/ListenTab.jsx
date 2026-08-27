@@ -52,7 +52,7 @@ export default function ListenTab({ saved, onSaveToggle, orKey }) {
                 )}
               </div>
               {w.audio_my ? (
-                <audio controls preload="none" style={{ height: 32, maxWidth: 160 }} src={`data:audio/mp3;base64,${w.audio_my}`} />
+                <audio controls preload="none" style={{ height: 32, maxWidth: 160 }} src={`data:audio/wav;base64,${w.audio_my}`} />
               ) : (
                 <button
                   className="icon-btn"
