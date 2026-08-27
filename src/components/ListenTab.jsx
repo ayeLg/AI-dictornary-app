@@ -148,6 +148,14 @@ export default function ListenTab({ saved, onSaveToggle, orKey }) {
                       <input type="checkbox" checked={selected.has(w.word)} onChange={() => toggleSelected(w.word)} />
                     )}
                     <button className="icon-btn" onClick={() => playFrom(w)}>▶</button>
+                    <button
+                      className="icon-btn"
+                      title="Regenerate"
+                      disabled={!hasKey || busyWord === w.word}
+                      onClick={() => generate(w)}
+                    >
+                      {busyWord === w.word ? '…' : '↻'}
+                    </button>
                   </div>
                 ) : (
                   <button
