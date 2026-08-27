@@ -4,14 +4,18 @@ import { buildSpeechScript, pcmToWavBase64 } from '../src/lib/geminiTts.js';
 const sample = {
   word: 'run',
   meanings: [
-    { pos: 'verb', pos_my: 'ကြိယာ', definitions: [{ definition_my: 'ပြေးသည်' }] },
+    {
+      pos: 'verb', pos_my: 'ကြိယာ',
+      definitions: [{ definition_my: 'ပြေးသည်' }, { definition_my: 'လည်ပတ်သည်' }],
+    },
     { pos: 'noun', pos_my: 'နာမ်', definitions: [{ definition_my: 'ပြေးခြင်း' }] },
   ],
 };
 
 const script = buildSpeechScript(sample);
 assert.ok(script.startsWith('run.'), 'must lead with the word');
-assert.ok(script.includes('ကြိယာ') && script.includes('ပြေးသည်'), 'must include verb meaning');
+assert.ok(script.includes('ကြိယာ') && script.includes('ပြေးသည်'), 'must include verb meaning #1');
+assert.ok(script.includes('လည်ပတ်သည်'), 'must include verb meaning #2 — not just the first definition per POS');
 assert.ok(script.includes('နာမ်') && script.includes('ပြေးခြင်း'), 'must include noun meaning');
 
 const noMeanings = buildSpeechScript({ word: 'test', meanings: [] });

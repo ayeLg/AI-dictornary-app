@@ -11,8 +11,8 @@ export function buildSpeechScript(wordData) {
   const myanmarText = meanings
     .map(m => {
       const posMy = m.pos_my || m.pos || '';
-      const def = m.definitions?.[0]?.definition_my || '';
-      return def ? `${posMy}။ ${def}` : '';
+      const defs = (m.definitions || []).map(d => d.definition_my).filter(Boolean);
+      return defs.length ? `${posMy}။ ${defs.join('. ')}` : '';
     })
     .filter(Boolean)
     .join(' ');
