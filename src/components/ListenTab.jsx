@@ -20,10 +20,12 @@ export default function ListenTab({ saved, onSaveToggle, orKey }) {
   const [queue, setQueue] = useState([]);
   const [queueIndex, setQueueIndex] = useState(0);
   const [loop, setLoop] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState(null);
   const audioRef = useRef(null);
 
   const hasKey = !!orKey;
   const generatedWords = saved.filter(w => w.audio_my);
+  const pendingWords = saved.filter(w => !w.audio_my);
 
   useEffect(() => {
     const el = audioRef.current;
@@ -45,6 +47,16 @@ export default function ListenTab({ saved, onSaveToggle, orKey }) {
     } finally {
       setBusyWord(null);
     }
+  };
+
+  const generateAll = async () => {
+    if (!hasKey || pendingWords.length === 0) return;
+    setBulkProgress({ done: 0, total: pendingWords.length });
+    for (let i = 0; i < pendingWords.length; i++) {
+      await generate(pendingWords[i]);
+      setBulkProgress({ done: i + 1, total: pendingWords.length });
+    }
+    setBulkProgress(null);
   };
 
   const buildQueue = (list, startIndex = 0) => {
@@ -83,6 +95,14 @@ export default function ListenTab({ saved, onSaveToggle, orKey }) {
       {!hasKey && (
         <div className="panel-card" style={{ padding: '12px 14px', marginBottom: 14, fontSize: 13, color: 'var(--text2)' }}>
           OpenRouter API key ကို Profile → Settings မှာ ထည့်ပါ။
+        </div>
+      )}
+
+      {hasKey && pendingWords.length > 0 && (
+        <div className="panel-card" style={{ padding: '10px 14px', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button className="icon-btn" disabled={!!bulkProgress} onClick={generateAll}>
+            {bulkProgress ? `Generating ${bulkProgress.done}/${bulkProgress.total}…` : `⚡ Generate All (${pendingWords.length})`}
+          </button>
         </div>
       )}
 
@@ -151,7 +171,7 @@ export default function ListenTab({ saved, onSaveToggle, orKey }) {
                     <button
                       className="icon-btn"
                       title="Regenerate"
-                      disabled={!hasKey || busyWord === w.word}
+                      disabled={!hasKey || busyWord === w.word || !!bulkProgress}
                       onClick={() => generate(w)}
                     >
                       {busyWord === w.word ? '…' : '↻'}
@@ -160,7 +180,7 @@ export default function ListenTab({ saved, onSaveToggle, orKey }) {
                 ) : (
                   <button
                     className="icon-btn"
-                    disabled={!hasKey || busyWord === w.word}
+                    disabled={!hasKey || busyWord === w.word || !!bulkProgress}
                     onClick={() => generate(w)}
                   >
                     {busyWord === w.word ? 'Generating…' : 'Generate'}
