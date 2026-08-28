@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { buildSpeechScript, synthesizeSpeech } from '../lib/geminiTts';
 import { cloudSaveAudio, cloudLoadAudioWords, cloudLoadAudio } from '../lib/supabase';
 import { getAllAudioWords, getAudio, deleteAudio } from '../lib/audioStore';
@@ -77,10 +77,14 @@ export default function ListenTab({ saved, onSaveToggle, orKey, user, onLogin })
     const el = audioRef.current;
     if (!el || queue.length === 0 || !user) return;
     let cancelled = false;
-    cloudLoadAudio(user.id, queue[queueIndex].word).then(base64 => {
+    const word = queue[queueIndex].word;
+    cloudLoadAudio(user.id, word).then(base64 => {
       if (cancelled || !base64) return;
       el.src = `data:audio/wav;base64,${base64}`;
       el.play().catch(() => {});
+      if ('mediaSession' in navigator) {
+        navigator.mediaSession.metadata = new MediaMetadata({ title: word, artist: 'Mingalar' });
+      }
     });
     return () => { cancelled = true; };
   }, [queue, queueIndex, user]);
@@ -130,14 +134,30 @@ export default function ListenTab({ saved, onSaveToggle, orKey, user, onLogin })
     });
   };
 
-  const next = () => setQueueIndex(i => (i + 1 < queue.length ? i + 1 : (loop ? 0 : i)));
-  const prev = () => setQueueIndex(i => (i > 0 ? i - 1 : (loop ? queue.length - 1 : 0)));
+  const next = useCallback(() => setQueueIndex(i => (i + 1 < queue.length ? i + 1 : (loop ? 0 : i))), [queue.length, loop]);
+  const prev = useCallback(() => setQueueIndex(i => (i > 0 ? i - 1 : (loop ? queue.length - 1 : 0))), [queue.length, loop]);
   const handleEnded = () => setQueueIndex(i => (i + 1 < queue.length ? i + 1 : (loop ? 0 : i)));
   const closeQueue = () => {
     if (audioRef.current) audioRef.current.pause();
     setQueue([]);
     setQueueIndex(0);
   };
+
+  // Registers this as a real OS-level media session — without it, mobile browsers treat the
+  // page as inactive once the screen locks and suspend JS, so auto-advance never fires.
+  useEffect(() => {
+    if (!('mediaSession' in navigator) || queue.length === 0) return;
+    navigator.mediaSession.setActionHandler('play', () => audioRef.current?.play());
+    navigator.mediaSession.setActionHandler('pause', () => audioRef.current?.pause());
+    navigator.mediaSession.setActionHandler('previoustrack', prev);
+    navigator.mediaSession.setActionHandler('nexttrack', next);
+    return () => {
+      navigator.mediaSession.setActionHandler('play', null);
+      navigator.mediaSession.setActionHandler('pause', null);
+      navigator.mediaSession.setActionHandler('previoustrack', null);
+      navigator.mediaSession.setActionHandler('nexttrack', null);
+    };
+  }, [queue.length, loop, next, prev]);
 
   if (!user) {
     return (
@@ -208,7 +228,14 @@ export default function ListenTab({ saved, onSaveToggle, orKey, user, onLogin })
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 11, color: 'var(--text3)' }}>{queueIndex + 1} / {queue.length}</div>
             <div className="saved-word-name" style={{ fontSize: 16 }}>{queue[queueIndex].word}</div>
-            <audio ref={audioRef} controls onEnded={handleEnded} style={{ width: '100%', height: 32, marginTop: 4 }} />
+            <audio
+              ref={audioRef}
+              controls
+              onEnded={handleEnded}
+              onPlay={() => { if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing'; }}
+              onPause={() => { if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused'; }}
+              style={{ width: '100%', height: 32, marginTop: 4 }}
+            />
           </div>
           <button className="icon-btn" onClick={next}>⏭</button>
           <button className="icon-btn danger" onClick={closeQueue}>✕</button>
