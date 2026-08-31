@@ -23,6 +23,7 @@ export default function ListenTab({ saved, onSaveToggle, orKey, user, onLogin })
   const [queue, setQueue] = useState([]);
   const [queueIndex, setQueueIndex] = useState(0);
   const [loop, setLoop] = useState(false);
+  const [shuffle, setShuffle] = useState(false);
   const [bulkProgress, setBulkProgress] = useState(null);
   const [audioWords, setAudioWords] = useState(new Set());
   const audioRef = useRef(null);
@@ -121,10 +122,12 @@ export default function ListenTab({ saved, onSaveToggle, orKey, user, onLogin })
     setQueueIndex(startIndex);
   };
 
-  const playAll = () => buildQueue(generatedWords, 0);
+  const withOrder = (list) => (shuffle ? shuffled(list) : list);
+
+  const playAll = () => buildQueue(withOrder(generatedWords), 0);
   const playFrom = (word) => buildQueue(generatedWords, generatedWords.findIndex(w => w.word === word.word));
-  const playRandom = (n) => buildQueue(shuffled(generatedWords).slice(0, n), 0);
-  const playSelected = () => buildQueue(generatedWords.filter(w => selected.has(w.word)), 0);
+  const playCount = (n) => buildQueue(withOrder(generatedWords).slice(0, n), 0);
+  const playSelected = () => buildQueue(withOrder(generatedWords.filter(w => selected.has(w.word))), 0);
 
   const toggleSelected = (word) => {
     setSelected(prev => {
@@ -203,9 +206,8 @@ export default function ListenTab({ saved, onSaveToggle, orKey, user, onLogin })
         <div className="panel-card" style={{ padding: '10px 14px', marginBottom: 10, display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
           <button className="icon-btn" onClick={playAll}>▶ Play All</button>
           {[10, 20].filter(n => n <= generatedWords.length).map(n => (
-            <button key={n} className="icon-btn" onClick={() => playRandom(n)}>🔀 {n}</button>
+            <button key={n} className="icon-btn" onClick={() => playCount(n)}>{n}</button>
           ))}
-          <button className="icon-btn" onClick={() => playRandom(generatedWords.length)}>🔀 All</button>
           <button
             className="icon-btn"
             style={selectMode ? activeStyle : undefined}
@@ -216,6 +218,9 @@ export default function ListenTab({ saved, onSaveToggle, orKey, user, onLogin })
           {selectMode && selected.size > 0 && (
             <button className="icon-btn" onClick={playSelected}>▶ Play Selected ({selected.size})</button>
           )}
+          <button className="icon-btn" style={shuffle ? activeStyle : undefined} onClick={() => setShuffle(s => !s)}>
+            🔀 Shuffle
+          </button>
           <button className="icon-btn" style={loop ? activeStyle : undefined} onClick={() => setLoop(l => !l)}>
             🔁 Loop
           </button>
