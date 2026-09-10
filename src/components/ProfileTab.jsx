@@ -330,7 +330,7 @@ export default function ProfileTab({ apiKey, saved, orKey, onSaveOrKey, onEditKe
       )}
 
       <p style={{ fontSize: 11, color: 'var(--text3)', textAlign: 'center', marginTop: 8 }}>
-        Mingalar v2.0 · build {__BUILD_ID__}
+        Mingalar v2.0
       </p>
     </div>
   );
