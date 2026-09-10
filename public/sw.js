@@ -1,4 +1,4 @@
-const CACHE = 'mingalar-v4';
+const CACHE = 'mingalar-v5';
 const PRECACHE = ['./index.html', './manifest.json', './icon.svg'];
 
 // Skip external hosts (fonts, CDN, API)
