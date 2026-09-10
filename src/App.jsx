@@ -72,8 +72,8 @@ export default function App() {
 
     const performSync = async () => {
       try {
-        const { saved: cloudWords, apiKey: cloudKey, srsData: cloudSrs } = await cloudLoad(user.id);
-        
+        const { saved: cloudWords, apiKey: cloudKey, srsData: cloudSrs, orKey: cloudOr } = await cloudLoad(user.id);
+
         if (!isMounted) return;
 
         if (cloudWords.length > 0) {
@@ -95,6 +95,14 @@ export default function App() {
         if (cloudSrs && Object.keys(cloudSrs).length > 0) {
           setSrsData(cloudSrs);
           lsSet(KEYS.SRS, cloudSrs);
+        }
+
+        if (cloudOr) {
+          setOrKeyState(cloudOr);
+          lsSet(KEYS.OR_KEY, cloudOr);
+        } else {
+          const localOr = lsGet(KEYS.OR_KEY, '');
+          if (localOr) await cloudSave(user.id, cloudWords, undefined, undefined, localOr);
         }
       } catch (e) {
         console.warn('Cloud load failed', e);
@@ -139,6 +147,7 @@ export default function App() {
   const handleSaveOrKey = (key) => {
     lsSet(KEYS.OR_KEY, key);
     setOrKeyState(key);
+    if (user) cloudSave(user.id, lsGet(KEYS.SAVED, []), undefined, undefined, key).catch(() => {});
   };
 
   const needsKey = authReady && !apiKey && activeTab === 'dictionary';

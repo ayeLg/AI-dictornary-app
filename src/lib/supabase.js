@@ -34,10 +34,11 @@ export async function signOutUser() {
 
 /* ── Cloud data (saved words, apiKey, srsData) ── */
 
-export async function cloudSave(uid, saved, apiKey, srsData) {
+export async function cloudSave(uid, saved, apiKey, srsData, orKey) {
   const data = { id: uid, saved, updated_at: new Date().toISOString() };
   if (apiKey !== undefined) data.api_key = apiKey;
   if (srsData !== undefined) data.srs_data = srsData;
+  if (orKey !== undefined) data.or_key = orKey;
 
   const { error } = await supabase
     .from('users')
@@ -49,17 +50,18 @@ export async function cloudSave(uid, saved, apiKey, srsData) {
 export async function cloudLoad(uid) {
   const { data, error } = await supabase
     .from('users')
-    .select('saved, api_key, srs_data')
+    .select('saved, api_key, srs_data, or_key')
     .eq('id', uid)
     .maybeSingle();
 
   if (error) throw error;
-  if (!data) return { saved: [], apiKey: null, srsData: {} };
+  if (!data) return { saved: [], apiKey: null, srsData: {}, orKey: null };
 
   return {
     saved:   data.saved || [],
     apiKey:  data.api_key || null,
     srsData: data.srs_data || {},
+    orKey:   data.or_key || null,
   };
 }
 
