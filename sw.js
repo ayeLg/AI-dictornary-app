@@ -1,4 +1,4 @@
-const CACHE = 'mingalar-v4';
+const CACHE = 'mingalar-v5';
 const PRECACHE = ['./index.html', './manifest.json', './icon.svg'];
 
 // Skip external hosts (fonts, CDN, API)
@@ -57,4 +57,4 @@ self.addEventListener('fetch', e => {
     })
   );
 });
-// build 9ed1e92a7cef3be99a5f9f8345015eb690a73523
+// build 5dee594457748ac1a47ed7f1a2428a425bd30c18
