@@ -14,6 +14,11 @@ jobs:
           node-version: 20
       - run: npm install
       - run: npm run build
+      # Stamp the SW with the commit SHA so its bytes change every deploy —
+      # that's what makes browsers detect an update and run the auto-reload
+      # in index.html. Without this, sw.js is identical forever and phones
+      # keep serving the old cached bundle.
+      - run: echo "// build ${{ github.sha }}" >> dist/sw.js
       - uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}

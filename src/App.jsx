@@ -112,6 +112,28 @@ export default function App() {
     };
   }, [user]);
 
+  // Re-pull the saved list when the tab comes back to the foreground or
+  // reconnects. The sync above only fires on auth changes, so a phone that
+  // keeps the tab alive for days never sees words added on another device.
+  useEffect(() => {
+    if (!user) return;
+    const resync = () => {
+      if (document.visibilityState !== 'visible') return;
+      cloudLoad(user.id).then(({ saved: cloudWords }) => {
+        if (cloudWords.length > 0) {
+          setSaved(cloudWords);
+          lsSet(KEYS.SAVED, cloudWords);
+        }
+      }).catch(() => {});
+    };
+    document.addEventListener('visibilitychange', resync);
+    window.addEventListener('online', resync);
+    return () => {
+      document.removeEventListener('visibilitychange', resync);
+      window.removeEventListener('online', resync);
+    };
+  }, [user]);
+
   useEffect(() => { setOrKey(orKey); }, [orKey]);
 
   const handleSaveOrKey = (key) => {
