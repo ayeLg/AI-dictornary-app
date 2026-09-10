@@ -217,7 +217,7 @@ export default function App() {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {syncing && <span style={{ fontSize: 11, color: 'var(--text3)' }}>⟳ syncing…</span>}
-          <span style={{ fontSize: 10, color: 'var(--text3)', fontFamily: 'var(--font-en)' }}>{__BUILD_ID__}</span>
+          <span style={{ fontSize: 10, color: 'var(--text3)', fontFamily: 'var(--font-en)' }}>v2.0 · {__BUILD_ID__}</span>
           {user && (
             <img src={user.user_metadata?.avatar_url || user.user_metadata?.picture} alt="" style={{ width: 28, height: 28, borderRadius: '50%', border: '2px solid var(--accent)' }} />
           )}
